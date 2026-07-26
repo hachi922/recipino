@@ -193,7 +193,9 @@ details.raw pre{
 .sec{margin-bottom:34px}
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;border-bottom:2px solid var(--ink);padding-bottom:7px}
 .sec-head h3{font-family:'Shippori Mincho',serif;font-size:17px;letter-spacing:.16em;font-weight:700}
-.sec-head .side{font-size:12px;color:var(--ink-soft);font-family:'DM Mono',monospace}
+.sec-head .side{font-size:12px;color:var(--ink-soft);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:12px}
+.edit-jump{font-family:'Zen Kaku Gothic New',sans-serif;font-size:12.5px;font-weight:700;color:var(--green-dark);border:1px solid var(--line);background:var(--card);padding:4px 11px;border-radius:999px}
+.edit-jump:hover{background:var(--green-pale);border-color:var(--green)}
 .ing{
   display:flex;align-items:center;gap:13px;width:100%;text-align:left;
   padding:13px 4px;border-bottom:1px solid var(--line);font-size:17px;line-height:1.5;
@@ -216,6 +218,23 @@ details.raw pre{
 }
 .step .t{font-size:16.5px;line-height:1.95;white-space:pre-wrap}
 .memo{background:var(--citrus-pale);border-radius:12px;padding:14px 16px;font-size:14.5px;white-space:pre-wrap;line-height:1.85}
+.imgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:6px}
+.imgcell{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.imgcell img{width:100%;height:104px;object-fit:cover;display:block;background:#EDF0EA}
+.imgbar{display:flex;align-items:center;gap:4px;padding:5px 5px 5px 7px;border-top:1px solid var(--line)}
+.imgbar select{flex:1;font-size:12px;border:none;background:none;padding:2px}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
+.shots button{padding:0;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--card)}
+.shots img{width:100%;display:block;max-height:340px;object-fit:cover}
+.capthumbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.capthumbs img{width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid var(--line)}
+.lightbox{
+  position:fixed;inset:0;z-index:100;background:rgba(10,14,18,.94);
+  display:none;align-items:center;justify-content:center;padding:12px;
+}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+.lightbox .close{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:16px;color:#fff;font-size:30px;line-height:1;padding:8px}
 .toast{
   position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
   background:var(--ink);color:#F3F6F1;padding:11px 20px;border-radius:999px;font-size:13.5px;
@@ -255,10 +274,15 @@ details.raw pre{
       <div class="eyebrow">とりこむ</div>
       <textarea id="cap" placeholder="YouTubeのURLを貼る。&#10;または、材料と作り方のテキストをそのまま貼る。"></textarea>
       <div class="foot">
-        <span class="note" id="cap-hint">URLでもテキストでも、同じボタンで通ります。</span>
-        <button class="btn" id="btn-cap">取り込む</button>
+        <span class="note" id="cap-hint">URL・テキスト・スクショ、どれでも同じボタンで通ります。</span>
+        <div class="row" style="gap:8px;flex-wrap:nowrap">
+          <button class="btn ghost" id="btn-pick" style="padding:13px 15px;white-space:nowrap">画像</button>
+          <button class="btn" id="btn-cap">取り込む</button>
+        </div>
       </div>
+      <div class="capthumbs" id="cap-thumbs"></div>
     </div>
+    <input type="file" id="cap-file" accept="image/*" multiple hidden>
     <div id="cap-err"></div>
 
     <div class="searchbar">
@@ -305,6 +329,15 @@ details.raw pre{
       <label>作り方</label>
       <div id="steps"></div>
       <button class="addline" id="add-step">＋ 手順を足す</button>
+      <button class="addline" id="pour-raw">↓ 元のテキストを1行ずつ流し込む</button>
+    </div>
+
+    <div class="field">
+      <label>スクショ</label>
+      <div class="imgrid" id="imgs"></div>
+      <button class="addline" id="add-img">＋ 画像を追加</button>
+      <input type="file" id="img-file" accept="image/*" multiple hidden>
+      <p class="note" style="margin-top:6px">材料か作り方かを選んでおくと、詳細画面のそれぞれの場所に並びます。</p>
     </div>
 
     <div class="field">
@@ -340,8 +373,9 @@ details.raw pre{
     <div class="player hidden" id="d-player"></div>
 
     <div class="sec" id="d-ing-sec">
-      <div class="sec-head"><h3>材料</h3><span class="side" id="d-ing-count"></span></div>
+      <div class="sec-head"><h3>材料</h3><span class="side"><span id="d-ing-count"></span><button class="edit-jump" data-to="ings">直す</button></span></div>
       <div id="d-ings"></div>
+      <div class="shots" id="d-shot-ing"></div>
       <div class="row" style="margin-top:14px">
         <button class="btn ghost" id="btn-copy" style="padding:9px 15px;font-size:13px">材料をコピー</button>
         <button class="btn ghost" id="btn-uncheck" style="padding:9px 15px;font-size:13px">チェックを外す</button>
@@ -349,8 +383,14 @@ details.raw pre{
     </div>
 
     <div class="sec" id="d-step-sec">
-      <div class="sec-head"><h3>作り方</h3></div>
+      <div class="sec-head"><h3>作り方</h3><span class="side"><button class="edit-jump" data-to="steps">直す</button></span></div>
       <div id="d-steps"></div>
+      <div class="shots" id="d-shot-step"></div>
+    </div>
+
+    <div class="sec hidden" id="d-shot-sec">
+      <div class="sec-head"><h3>そのほかの画像</h3></div>
+      <div class="shots" id="d-shot-other"></div>
     </div>
 
     <div class="sec hidden" id="d-memo-sec">
@@ -371,6 +411,7 @@ details.raw pre{
 
 </main>
 
+<div class="lightbox" id="lightbox"><button class="close" id="lb-close">×</button><img id="lb-img" alt=""></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -391,12 +432,24 @@ const YOUTUBE_API_KEY = "AIzaSyBfv3QulvCNqt0eTm6MrxBBXI_OoLCxo7k";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp }
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+         collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDocsFromCache, where,
+         onSnapshot, query, orderBy, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const app  = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+/* 端末内キャッシュを有効化。一度読んだ画像は次回から通信せずに出る。
+   プライベートブラウズなど使えない環境では通常モードに落ちる。 */
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch (e){
+  console.warn('ローカルキャッシュを使えませんでした:', e);
+  db = getFirestore(app);
+}
 
 /* ---------- 小道具 ---------- */
 const $  = (s, r = document) => r.querySelector(s);
@@ -408,7 +461,109 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2200);
 }
 
-const S = { user:null, recipes:[], view:'auth', draft:null, current:null, checked:new Set(), unsub:null };
+const S = { user:null, recipes:[], view:'auth', draft:null, current:null, checked:new Set(), unsub:null,
+            capImages:[], draftImages:[], removedImages:[], detailImages:[] };
+
+/* ============================================================
+   画像
+   ============================================================ */
+const IMG_MAX = 1600, IMG_TARGET = 180 * 1024;
+
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const k = Math.min(1, IMG_MAX / Math.max(w, h));
+      w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      let q = 0.82;
+      let out = c.toDataURL('image/webp', q);
+      if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/jpeg', q);
+      const type = out.slice(5, out.indexOf(';'));
+      while (out.length * 0.75 > IMG_TARGET && q > 0.38){
+        q -= 0.1;
+        out = c.toDataURL(type, q);
+      }
+      resolve(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像を読み込めませんでした')); };
+    img.src = url;
+  });
+}
+
+/* 一覧カード用の小さなサムネ。一覧は全件を読むので軽くしておく。 */
+function shrink(dataUrl, maxPx, target){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const k = Math.min(1, maxPx / Math.max(w, h));
+      w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let q = 0.7, out = c.toDataURL('image/webp', q);
+      if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/jpeg', q);
+      const type = out.slice(5, out.indexOf(';'));
+      while (out.length * 0.75 > target && q > 0.3){ q -= 0.1; out = c.toDataURL(type, q); }
+      resolve(out);
+    };
+    img.onerror = () => resolve('');
+    img.src = dataUrl;
+  });
+}
+
+async function filesToImages(files){
+  const out = [];
+  for (const f of Array.from(files)){
+    if (!/^image\//.test(f.type)) continue;
+    try { out.push({ data: await compressImage(f), kind:'ingredients' }); }
+    catch (e){ console.warn(e); }
+  }
+  return out;
+}
+
+const imgCol = () => collection(db, 'users', S.user.uid, 'images');
+
+async function loadImages(recipeId, expected){
+  const qy = query(imgCol(), where('recipeId', '==', recipeId));
+  let snap = null;
+  try {
+    const cached = await getDocsFromCache(qy);
+    /* レシピ本体は常時同期されているので、その imageCount と
+       枚数が一致すればキャッシュを信用してよい。 */
+    if (!cached.empty && (expected == null || cached.size === expected)) snap = cached;
+  } catch (e){ /* キャッシュ無効時は素通り */ }
+  if (!snap) snap = await getDocs(qy);
+  return snap.docs.map(d => Object.assign({ id:d.id }, d.data()))
+                  .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+const KIND_LABEL = { ingredients:'材料', steps:'作り方', other:'その他' };
+function kindSelect(kind, i){
+  return '<select class="kindsel" data-i="' + i + '">' +
+    Object.keys(KIND_LABEL).map(k =>
+      '<option value="' + k + '"' + (kind === k ? ' selected' : '') + '>' + KIND_LABEL[k] + '</option>'
+    ).join('') + '</select>';
+}
+
+/* ライトボックス */
+function lightbox(src){
+  $('#lb-img').src = src;
+  $('#lightbox').classList.add('on');
+}
+$('#lb-close').addEventListener('click', () => $('#lightbox').classList.remove('on'));
+$('#lightbox').addEventListener('click', e => {
+  if (e.target.id !== 'lb-img') $('#lightbox').classList.remove('on');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#lightbox').classList.remove('on');
+});
 
 /* ============================================================
    解析まわり
@@ -418,8 +573,10 @@ const UNIT  = '(?:大さじ|小さじ|カップ|グラム|キロ|リットル|cc
 const VAGUE = '(?:少々|少量|適量|適宜|ひとつまみ|一つまみ|お好みで|お好みの量|各適量|たっぷり|ひたひた)';
 const BULLET = /^[\s\u3000・･◦‣▪▫\-–—+*＊●○◎◇◆■□▲△▼▽☆★>＞»]+/;
 const SEP    = /[\s\u3000…‥・．.:：\-–—~〜=＝]+$/;
-const NOISE  = /(チャンネル登録|高評価|フォロー(?!$)|instagram|twitter|tiktok|facebook|x\.com|楽天|amazon|お問い?合わせ|お仕事|ご依頼|BGM|音源|効果音|使用曲|購入(?:先|はこちら)|リンクはこちら|サブチャンネル|メンバーシップ|※?この動画|概要欄|コメント欄|↓|▼|＃|©|Copyright|http)/i;
+const SKIP   = /^(?:[#＃].*|https?:\/\/\S+.*|[▼▽△▲↓↑⇒→※・\-–—=＝~〜*＊_\s\u3000]+)$/;
+const FOOTER = /(チャンネル登録|高評価|いいね|サブチャンネル|メンバーシップ|お問い?合わせ|お仕事|ご依頼|使用(?:した)?(?:BGM|音源|楽曲|曲|機材)|効果音|楽天|購入(?:先|はこちら)|Instagram|Twitter|TikTok|X\(旧|フォロー(?:して|よろ))/i;
 const NUMBERED = /^[\s\u3000]*(?:[①-⑳]|[❶-❿]|[0-9０-９]{1,2}\s*[.．)）:：、。]|[(（]\s*[0-9０-９]{1,2}\s*[)）]|STEP\s*[0-9]+[.:：]?|手順\s*[0-9０-９]+[.:：]?)[\s\u3000]*/i;
+const INLINE_NO = /[①-⑳❶-❿]/g;
 
 function splitQty(q){
   let m = q.match(new RegExp('^(大さじ|小さじ|カップ)\\s*(' + NUM + ')$'));
@@ -444,63 +601,102 @@ function parseIngredient(raw){
 
 function findMarker(lines, re, maxLen){
   for (let i = 0; i < lines.length; i++){
-    const bare = lines[i].replace(/[【】\[\]◆■●○★☆<>《》「」（）():：\s\u3000\-–—=＝]/g, '');
+    const bare = lines[i].replace(/[【】\[\]◆■●○★☆<>《》「」（）():：\s\u3000\-–—=＝▼▽↓]/g, '');
     if (re.test(bare) && bare.length <= maxLen) return i;
   }
   return -1;
 }
 
+/* 連番が1行に詰め込まれている場合（①〜 ②〜 ③〜）をばらす */
+function splitInline(t){
+  const marks = t.match(INLINE_NO);
+  if (!marks || marks.length < 2) return null;
+  return t.split(/(?=[①-⑳❶-❿])/)
+          .map(x => x.replace(/^[①-⑳❶-❿][\s\u3000]*/, '').trim())
+          .filter(Boolean);
+}
+
+function collectSteps(lines, from, to){
+  const out = []; let buf = '', skipped = 0;
+  for (let i = from; i < to; i++){
+    const l = lines[i];
+    if (!l){ if (buf){ out.push(buf); buf = ''; } continue; }
+    if (FOOTER.test(l)) break;
+    if (SKIP.test(l)){ skipped++; if (skipped >= 3) break; continue; }
+    skipped = 0;
+    if (NUMBERED.test(l)){
+      if (buf) out.push(buf);
+      buf = l.replace(NUMBERED, '').trim();
+    } else if (buf && !/[。．！？!?」）)]$/.test(buf)){
+      buf += l;                    /* 折り返しの続き */
+    } else {
+      if (buf) out.push(buf);
+      buf = l;                     /* 1行 = 1手順 */
+    }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
 function parseRecipe(text){
   const lines = String(text || '').replace(/\r/g, '').split('\n').map(l => l.trim());
   const iStart = findMarker(lines, /^材料/, 16);
-  const sStart = findMarker(lines, /^(作り方|作りかた|つくり方|手順|調理手順|工程|レシピ)/, 12);
+  const sStart = findMarker(lines, /^(作り方|作りかた|つくり方|手順|調理手順|作る|工程|レシピ)/, 12);
 
-  /* 材料 */
+  /* ---- 材料 ---- */
   const ings = [];
+  let iEnd = -1;
   if (iStart >= 0){
-    const end = (sStart > iStart) ? sStart : lines.length;
+    const limit = (sStart > iStart) ? sStart : lines.length;
     let miss = 0;
-    for (let i = iStart + 1; i < end; i++){
+    for (let i = iStart + 1; i < limit; i++){
       const l = lines[i];
-      if (!l){ continue; }
-      if (NOISE.test(l)){ miss++; if (miss >= 4) break; continue; }
+      if (!l) continue;
+      if (FOOTER.test(l)) break;
+      if (SKIP.test(l)) continue;
       const g = parseIngredient(l);
-      if (g){ ings.push(g); miss = 0; }
-      else { miss++; if (miss >= 4) break; }
+      if (g){ ings.push(g); miss = 0; iEnd = i + 1; }
+      else { miss++; if (miss >= 3) break; }
     }
+    if (iEnd < 0) iEnd = Math.min(iStart + 1, limit);
   }
   if (!ings.length){
     for (const l of lines){
-      if (!l || NOISE.test(l)) continue;
+      if (!l || SKIP.test(l) || FOOTER.test(l)) continue;
       const g = parseIngredient(l);
       if (g) ings.push(g);
     }
   }
 
-  /* 作り方 */
+  /* ---- 作り方：見出し → 番号行 → 材料のあと、の順に探す ---- */
   let steps = [];
-  if (sStart >= 0){
-    let buf = '';
-    for (let i = sStart + 1; i < lines.length; i++){
-      const l = lines[i];
-      if (NOISE.test(l)) break;
-      if (!l){ if (buf){ steps.push(buf); buf = ''; } continue; }
-      if (NUMBERED.test(l)){
-        if (buf) steps.push(buf);
-        buf = l.replace(NUMBERED, '').trim();
-      } else {
-        buf = buf ? buf + '\n' + l : l;
-      }
-    }
-    if (buf) steps.push(buf);
-  }
+  if (sStart >= 0) steps = collectSteps(lines, sStart + 1, lines.length);
+
   if (!steps.length){
     for (const l of lines){
-      if (!l || NOISE.test(l)) continue;
+      if (!l || SKIP.test(l)) continue;
+      if (FOOTER.test(l)) break;
       if (NUMBERED.test(l)) steps.push(l.replace(NUMBERED, '').trim());
     }
   }
-  steps = steps.map(s => s.trim()).filter(s => s.length > 1);
+  if (!steps.length && iEnd > 0){
+    steps = collectSteps(lines, iEnd, lines.length).filter(t => !parseIngredient(t));
+  }
+  if (!steps.length){
+    steps = collectSteps(lines, 0, lines.length).filter(t => !parseIngredient(t) && t.length > 6);
+    if (steps.length) steps.shift();   /* 先頭はたいていタイトル */
+  }
+
+  /* ---- 仕上げ ---- */
+  const flat = [];
+  steps.forEach(t => { const p = splitInline(t); p ? flat.push.apply(flat, p) : flat.push(t); });
+  steps = flat;
+
+  if (steps.length === 1 && steps[0].length > 110){
+    const parts = steps[0].split('。').map(x => x.trim()).filter(Boolean);
+    if (parts.length > 1) steps = parts.map((x, i) => (i < parts.length - 1 || steps[0].endsWith('。')) ? x + '。' : x);
+  }
+  steps = steps.map(t => t.trim()).filter(t => t.length > 1);
 
   const sv = String(text || '').match(/([0-9０-９]+\s*[〜~ー-]?\s*[0-9０-９]*)\s*人分/);
   return { ingredients:ings, steps, servings: sv ? sv[0].replace(/\s/g, '') : '' };
@@ -562,10 +758,33 @@ async function fetchYouTube(id){
 /* ============================================================
    取り込み
    ============================================================ */
+function renderCapThumbs(){
+  $('#cap-thumbs').innerHTML = S.capImages.map(im => '<img src="' + im.data + '" alt="">').join('');
+  $('#cap-hint').textContent = S.capImages.length
+    ? S.capImages.length + '枚の画像を取り込みます。'
+    : 'URL・テキスト・スクショ、どれでも同じボタンで通ります。';
+}
+async function addCapFiles(files){
+  const imgs = await filesToImages(files);
+  if (!imgs.length) return;
+  S.capImages = S.capImages.concat(imgs);
+  renderCapThumbs();
+}
+$('#btn-pick').addEventListener('click', () => $('#cap-file').click());
+$('#cap-file').addEventListener('change', e => { addCapFiles(e.target.files); e.target.value = ''; });
+$('#cap').addEventListener('paste', e => {
+  const f = Array.from(e.clipboardData.files || []);
+  if (f.length){ e.preventDefault(); addCapFiles(f); }
+});
+['dragover','drop'].forEach(ev => $('.capture').addEventListener(ev, e => {
+  e.preventDefault();
+  if (ev === 'drop' && e.dataTransfer.files.length) addCapFiles(e.dataTransfer.files);
+}));
+
 $('#btn-cap').addEventListener('click', async () => {
   const val = $('#cap').value.trim();
   $('#cap-err').innerHTML = '';
-  if (!val) return;
+  if (!val && !S.capImages.length) return;
   const btn = $('#btn-cap');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>読みこみ中';
   try {
@@ -582,6 +801,11 @@ $('#btn-cap').addEventListener('click', async () => {
       }, parseRecipe(best.text));
     } else if (url && val.replace(url, '').trim().length < 20){
       throw new Error('YouTube以外のURLの自動取り込みはまだ用意していません。ページの材料と作り方をコピーして、テキストとして貼ってください。');
+    } else if (!val && S.capImages.length){
+      S.draft = Object.assign({
+        source:'image', url:'', videoId:'', title:'', thumbnail:'',
+        rawText:'', memo:'', tags:[], _sources:null, _srcIndex:0
+      }, { ingredients:[], steps:[], servings:'' });
     } else {
       const first = val.split('\n').map(l => l.trim()).find(l => l && !/https?:\/\//.test(l)) || '名前のないレシピ';
       S.draft = Object.assign({
@@ -590,6 +814,12 @@ $('#btn-cap').addEventListener('click', async () => {
       }, parseRecipe(val));
     }
     S.current = null;
+    S.draftImages = S.capImages.slice();
+    S.removedImages = [];
+    S.capImages = [];
+    renderCapThumbs();
+    if (!S.draft.thumbnail && S.draftImages.length)
+      S.draft.thumbnail = await shrink(S.draftImages[0].data, 320, 22 * 1024);
     openEditor();
   } catch (e){
     $('#cap-err').innerHTML = '<div class="alert">' + esc(e.message) + '</div>';
@@ -636,7 +866,9 @@ function renderList(){
     const th = r.thumbnail
       ? '<div class="thumb" style="background-image:url(' + esc(r.thumbnail) + ')"></div>'
       : '<div class="thumb">テキスト</div>';
-    const badge = r.source === 'youtube' ? '<span class="pill">YouTube</span>' : '<span class="pill g">メモ</span>';
+    const badge = r.source === 'youtube' ? '<span class="pill">YouTube</span>'
+                : r.source === 'image'    ? '<span class="pill g">スクショ</span>'
+                : '<span class="pill g">メモ</span>';
     const n = (r.ingredients || []).length;
     return '<button class="card" data-id="' + esc(r.id) + '">' + th +
       '<div class="body"><h3>' + esc(r.title || '名前のないレシピ') + '</h3>' +
@@ -689,6 +921,8 @@ function fillEditor(d){
   (d.steps && d.steps.length ? d.steps : ['']).forEach(t => sc.appendChild(stepRow(t)));
   renumber();
 
+  renderDraftImages();
+
   const sw = $('#src-wrap');
   if (d._sources && d._sources.length > 1){
     sw.classList.remove('hidden');
@@ -701,6 +935,35 @@ function openEditor(){
   fillEditor(S.draft);
   show('edit');
 }
+function renderDraftImages(){
+  $('#imgs').innerHTML = S.draftImages.map((im, i) =>
+    '<figure class="imgcell"><img src="' + im.data + '" alt="" data-view="' + i + '">' +
+    '<div class="imgbar">' + kindSelect(im.kind || 'ingredients', i) +
+    '<button class="x" data-del="' + i + '" title="この画像を消す">×</button></div></figure>').join('');
+}
+$('#add-img').addEventListener('click', () => $('#img-file').click());
+$('#img-file').addEventListener('change', async e => {
+  const imgs = await filesToImages(e.target.files);
+  e.target.value = '';
+  if (!imgs.length) return;
+  S.draftImages = S.draftImages.concat(imgs);
+  renderDraftImages();
+  if (!S.draft.thumbnail)
+    S.draft.thumbnail = await shrink(S.draftImages[0].data, 320, 22 * 1024);
+});
+$('#imgs').addEventListener('click', e => {
+  const v = e.target.dataset.view, d = e.target.dataset.del;
+  if (v !== undefined) return lightbox(S.draftImages[+v].data);
+  if (d === undefined) return;
+  const im = S.draftImages.splice(+d, 1)[0];
+  if (im && im.id) S.removedImages.push(im);
+  renderDraftImages();
+});
+$('#imgs').addEventListener('change', e => {
+  if (!e.target.classList.contains('kindsel')) return;
+  S.draftImages[+e.target.dataset.i].kind = e.target.value;
+});
+
 $('#add-ing').addEventListener('click', () => { $('#ings').appendChild(ingRow()); });
 $('#add-step').addEventListener('click', () => { $('#steps').appendChild(stepRow()); renumber(); });
 $('#src').addEventListener('change', e => {
@@ -732,20 +995,47 @@ function collect(){
     source: S.draft.source, url: $('#f-url').value.trim(), videoId: S.draft.videoId || '',
     title: $('#f-title').value.trim() || '名前のないレシピ', thumbnail: S.draft.thumbnail || '',
     servings: $('#f-serv').value.trim(), ingredients, steps, tags,
-    memo: $('#f-memo').value.trim(), rawText: S.draft.rawText || ''
+    memo: $('#f-memo').value.trim(), rawText: S.draft.rawText || '',
+    imageCount: S.draftImages.length
   };
 }
+async function saveImages(recipeId){
+  for (const im of S.removedImages){
+    try { await deleteDoc(doc(imgCol(), im.id)); } catch (e){ console.warn(e); }
+  }
+  S.removedImages = [];
+  for (let i = 0; i < S.draftImages.length; i++){
+    const im = S.draftImages[i];
+    try {
+      if (im.id) await updateDoc(doc(imgCol(), im.id), { kind: im.kind || 'ingredients', order: i });
+      else {
+        const ref = await addDoc(imgCol(), {
+          recipeId, kind: im.kind || 'ingredients', data: im.data, order: i, createdAt: serverTimestamp()
+        });
+        im.id = ref.id;
+      }
+    } catch (e){ console.warn(e); toast('画像を1枚保存できませんでした'); }
+  }
+}
+
 $('#btn-save').addEventListener('click', async () => {
   const b = $('#btn-save'); b.disabled = true;
   const data = collect();
   try {
     const col = collection(db, 'users', S.user.uid, 'recipes');
+    let rid;
     if (S.current){
-      await updateDoc(doc(col, S.current.id), Object.assign({}, data, { updatedAt: serverTimestamp() }));
+      rid = S.current.id;
+      await updateDoc(doc(col, rid), Object.assign({}, data, { updatedAt: serverTimestamp() }));
+    } else {
+      const ref = await addDoc(col, Object.assign({}, data, { createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+      rid = ref.id;
+    }
+    await saveImages(rid);
+    if (S.current){
       S.current = Object.assign({}, S.current, data);
       openDetail(S.current);
     } else {
-      await addDoc(col, Object.assign({}, data, { createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
       $('#cap').value = '';
       show('list');
     }
@@ -757,11 +1047,34 @@ $('#btn-save').addEventListener('click', async () => {
 });
 
 /* ---- 詳細（台所用） ---- */
+function shotStrip(el, list){
+  el.innerHTML = list.map(im =>
+    '<button data-src="' + esc(im.id) + '"><img src="' + im.data + '" alt="" loading="lazy"></button>').join('');
+}
+function renderDetailImages(){
+  const by = k => S.detailImages.filter(im => (im.kind || 'ingredients') === k);
+  const ing = by('ingredients'), st = by('steps'), ot = by('other');
+  shotStrip($('#d-shot-ing'), ing);
+  shotStrip($('#d-shot-step'), st);
+  shotStrip($('#d-shot-other'), ot);
+  $('#d-ing-sec').classList.toggle('hidden', !(S.current.ingredients || []).length && !ing.length);
+  $('#d-step-sec').classList.toggle('hidden', !(S.current.steps || []).length && !st.length);
+  $('#d-shot-sec').classList.toggle('hidden', !ot.length);
+}
+$$('.shots').forEach(el => el.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const im = S.detailImages.find(x => x.id === b.dataset.src);
+  if (im) lightbox(im.data);
+}));
+
 function openDetail(r){
   S.current = r; S.checked = new Set();
+  S.detailImages = [];
   $('#d-title').textContent = r.title || '名前のないレシピ';
   $('#d-meta').innerHTML =
-    (r.source === 'youtube' ? '<span class="pill">YouTube</span>' : '<span class="pill g">メモ</span>') +
+    (r.source === 'youtube' ? '<span class="pill">YouTube</span>'
+     : r.source === 'image'  ? '<span class="pill g">スクショ</span>'
+     : '<span class="pill g">メモ</span>') +
     (r.servings ? '<span>' + esc(r.servings) + '</span>' : '');
 
   const open = $('#d-open');
@@ -776,17 +1089,19 @@ function openDetail(r){
   } else { p.classList.add('hidden'); p.innerHTML = ''; }
 
   renderIngs();
-  $('#d-ing-sec').classList.toggle('hidden', !(r.ingredients || []).length);
 
   const steps = r.steps || [];
-  $('#d-step-sec').classList.toggle('hidden', !steps.length);
   $('#d-steps').innerHTML = steps.map((t, i) =>
     '<div class="step"><span class="n">' + (i + 1) + '</span><span class="t">' + esc(t) + '</span></div>').join('');
 
   $('#d-memo-sec').classList.toggle('hidden', !r.memo);
   $('#d-memo').textContent = r.memo || '';
   $('#d-raw').textContent = r.rawText || '（なし）';
+  renderDetailImages();
   show('detail');
+  loadImages(r.id, r.imageCount).then(list => {
+    if (S.current && S.current.id === r.id){ S.detailImages = list; renderDetailImages(); }
+  }).catch(e => console.warn(e));
 }
 function renderIngs(){
   const gs = S.current.ingredients || [];
@@ -815,12 +1130,32 @@ $('#btn-copy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(txt); toast('材料をコピーしました'); }
   catch { toast('コピーできませんでした'); }
 });
-$('#btn-edit').addEventListener('click', () => {
+function startEdit(scrollTo){
   S.draft = Object.assign({}, S.current, { _sources:null, _srcIndex:0 });
+  S.draftImages = S.detailImages.map(im => Object.assign({}, im));
+  S.removedImages = [];
   openEditor();
+  if (scrollTo) requestAnimationFrame(() => {
+    const el = $('#' + scrollTo);
+    if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior:'smooth' });
+  });
+}
+$('#btn-edit').addEventListener('click', () => startEdit());
+$$('.edit-jump').forEach(b => b.addEventListener('click', () => startEdit(b.dataset.to)));
+
+$('#pour-raw').addEventListener('click', () => {
+  const lines = String(S.draft.rawText || '').split('\n').map(l => l.trim())
+    .filter(l => l && !SKIP.test(l) && !FOOTER.test(l));
+  if (!lines.length){ toast('流し込めるテキストがありません'); return; }
+  const sc = $('#steps');
+  lines.forEach(l => sc.appendChild(stepRow(l.replace(NUMBERED, '').trim())));
+  renumber();
+  toast(lines.length + '行を追加しました。いらない行は × で消してください');
 });
 $('#btn-del').addEventListener('click', async () => {
   if (!confirm('「' + (S.current.title || '') + '」を削除します。もとに戻せません。')) return;
+  const gone = await loadImages(S.current.id, S.current.imageCount).catch(() => []);
+  for (const im of gone){ try { await deleteDoc(doc(imgCol(), im.id)); } catch (e){} }
   await deleteDoc(doc(db, 'users', S.user.uid, 'recipes', S.current.id));
   S.current = null; show('list'); toast('削除しました');
 });
