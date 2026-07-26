@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16202B">
 <title>Recipino</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -386,7 +389,7 @@ const YOUTUBE_API_KEY = "AIzaSyBfv3QulvCNqt0eTm6MrxBBXI_OoLCxo7k";
 /* ========================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged }
+import { getAuth, GoogleAuthProvider, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -835,13 +838,24 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ---- 認証と同期 ---- */
+/* Pantryno と同じくポップアップのみ。アプリのドメインと authDomain が
+   違うため、signInWithRedirect は端末側のストレージ制限で戻ってこられない。 */
+getRedirectResult(auth).catch(() => {});
+
 $('#btn-in').addEventListener('click', async () => {
-  const p = new GoogleAuthProvider();
-  try { await signInWithPopup(auth, p); }
-  catch (e){
-    if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')
-      await signInWithRedirect(auth, p);
-    else $('#auth-note').textContent = 'ログインできませんでした：' + e.code;
+  const note = $('#auth-note');
+  note.textContent = '';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e){
+    if (e.code === 'auth/popup-blocked')
+      note.textContent = 'ポップアップがブロックされました。アドレスバーの許可を出すか、SafariやChromeで直接開いてみてください。';
+    else if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request')
+      note.textContent = '';
+    else if (e.code === 'auth/operation-not-supported-in-this-environment')
+      note.textContent = 'このブラウザではログインできません。SafariやChromeで開き直してください（アプリ内ブラウザは不可）。';
+    else
+      note.textContent = 'ログインできませんでした：' + e.code;
   }
 });
 $('#btn-out').addEventListener('click', () => signOut(auth));
