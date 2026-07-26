@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16202B">
-<title>レシピ控え</title>
+<title>Recipino</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
   --ink:#16202B;
@@ -48,8 +48,8 @@ a{color:var(--green-dark)}
   display:flex;align-items:center;gap:12px;
 }
 .brand{
-  font-family:'Shippori Mincho',serif;font-weight:700;font-size:19px;
-  letter-spacing:.14em;flex:1;line-height:1;
+  font-family:'Pacifico',cursive;font-weight:400;font-size:23px;
+  letter-spacing:.5px;flex:1;line-height:1.2;padding-bottom:2px;
 }
 .bar-btn{
   color:#F3F6F1;font-size:13px;padding:7px 12px;border-radius:999px;
@@ -92,7 +92,7 @@ textarea.inp{resize:vertical;min-height:92px}
 
 /* ---------- sign in ---------- */
 .gate{text-align:center;padding:16vh 8px}
-.gate h2{font-family:'Shippori Mincho',serif;font-size:26px;letter-spacing:.1em;margin-bottom:10px}
+.gate h2{font-family:'Pacifico',cursive;font-weight:400;font-size:38px;letter-spacing:.5px;margin-bottom:14px;color:var(--green-dark)}
 .gate p{color:var(--ink-soft);font-size:14px;margin-bottom:28px}
 
 /* ---------- capture box ---------- */
@@ -228,7 +228,7 @@ details.raw pre{
 <body>
 
 <header class="bar">
-  <div class="brand">レシピ控え</div>
+  <div class="brand">Recipino</div>
   <button class="bar-btn" id="btn-back" hidden>もどる</button>
   <button class="bar-btn solid" id="btn-new" hidden>ひかえる</button>
   <button class="bar-btn" id="btn-out" hidden>ログアウト</button>
@@ -239,7 +239,7 @@ details.raw pre{
   <!-- サインイン -->
   <section class="view on" id="v-auth">
     <div class="gate">
-      <h2>レシピ控え</h2>
+      <h2>Recipino</h2>
       <p>動画の概要欄やコメント欄から、材料と作り方だけを取り出して控えておく場所です。</p>
       <button class="btn" id="btn-in">Googleでログイン</button>
       <p class="note" style="margin-top:22px" id="auth-note"></p>
