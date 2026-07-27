@@ -52,8 +52,10 @@ a{color:var(--green-dark)}
 }
 .brand{
   font-family:'Pacifico',cursive;font-weight:400;font-size:23px;
-  letter-spacing:.5px;flex:1;line-height:1.2;padding-bottom:2px;
+  letter-spacing:.5px;flex:1;line-height:1.2;padding:0 0 2px;
+  color:#F3F6F1;text-align:left;
 }
+.brand:hover{opacity:.82}
 .bar-btn{
   color:#F3F6F1;font-size:13px;padding:7px 12px;border-radius:999px;
   border:1px solid rgba(243,246,241,.32);white-space:nowrap;
@@ -175,7 +177,7 @@ textarea.inp{resize:vertical;min-height:92px}
   font-family:'DM Mono',monospace;font-size:13px;color:var(--citrus);font-weight:500;
   padding-top:11px;width:22px;flex:0 0 22px;text-align:right;
 }
-.step-row textarea{min-height:52px}
+.step-row textarea{min-height:52px;overflow:hidden}
 .addline{
   width:100%;border:1px dashed var(--line);border-radius:10px;padding:9px;
   font-size:13px;color:var(--ink-soft);margin-top:4px;
@@ -273,8 +275,7 @@ details.raw pre{
 <body>
 
 <header class="bar">
-  <div class="brand">Recipino</div>
-  <button class="bar-btn" id="btn-back" hidden>もどる</button>
+  <button class="brand" id="btn-home" title="トップへ">Recipino</button>
   <button class="bar-btn solid" id="btn-new" hidden>ひかえる</button>
   <button class="bar-btn" id="btn-out" hidden>ログアウト</button>
 </header>
@@ -408,11 +409,11 @@ details.raw pre{
   <section class="view detail" id="v-detail">
     <h2 id="d-title"></h2>
     <div class="meta" id="d-meta" style="margin-bottom:18px"></div>
-    <a class="open-video" id="d-open" target="_blank" rel="noopener">▶　動画を開く</a>
+    <a class="open-video" id="d-open" target="_blank" rel="noopener">↗　URLを開く</a>
     <div class="player hidden" id="d-player"></div>
 
     <div class="sec" id="d-ing-sec">
-      <div class="sec-head"><h3>材料</h3><span class="side"><span id="d-ing-count"></span><button class="edit-jump" data-to="ings">直す</button></span></div>
+      <div class="sec-head"><h3>材料</h3><span class="side"><span id="d-ing-count"></span><button class="edit-jump" data-to="ings">修正</button></span></div>
       <div id="d-ings"></div>
       <div class="shots" id="d-shot-ing"></div>
       <div class="row" style="margin-top:14px">
@@ -422,7 +423,7 @@ details.raw pre{
     </div>
 
     <div class="sec" id="d-step-sec">
-      <div class="sec-head"><h3>作り方</h3><span class="side"><button class="edit-jump" data-to="steps">直す</button></span></div>
+      <div class="sec-head"><h3>作り方</h3><span class="side"><button class="edit-jump" data-to="steps">修正</button></span></div>
       <div id="d-steps"></div>
       <div class="shots" id="d-shot-step"></div>
     </div>
@@ -443,7 +444,8 @@ details.raw pre{
     </details>
 
     <div class="sticky-foot">
-      <button class="btn" id="btn-edit">直す</button>
+      <button class="btn ghost" id="btn-back2" style="flex:0 0 auto">もどる</button>
+      <button class="btn" id="btn-edit">修正</button>
       <button class="btn link" id="btn-del" style="flex:0 0 auto">削除</button>
     </div>
   </section>
@@ -875,13 +877,13 @@ $('#btn-cap').addEventListener('click', async () => {
 function show(v){
   S.view = v;
   $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
-  $('#btn-back').hidden = (v === 'list' || v === 'auth');
+  $('#btn-home').hidden = (v === 'auth');
   $('#btn-new').hidden  = (v !== 'list');
   $('#btn-out').hidden  = (v !== 'list');
   keepAwake(v === 'detail');
   window.scrollTo(0, 0);
 }
-$('#btn-back').addEventListener('click', () => show(S.current && S.view === 'edit' ? 'detail' : 'list'));
+$('#btn-home').addEventListener('click', () => { if (S.user){ S.current = null; show('list'); } });
 $('#btn-new').addEventListener('click', () => { $('#cap').focus(); window.scrollTo({ top:0, behavior:'smooth' }); });
 
 /* ---- フォルダ ---- */
@@ -1020,7 +1022,7 @@ function renderList(){
   if (!list.length){
     $('#cards').innerHTML = q
       ? '<div class="empty"><strong>見つかりませんでした</strong>別のことばで探してみてください。</div>'
-      : '<div class="empty"><strong>このフォルダは空です</strong>レシピの「直す」からフォルダを選ぶと入ります。</div>';
+      : '<div class="empty"><strong>このフォルダは空です</strong>レシピの「修正」からフォルダを選ぶと入ります。</div>';
     return;
   }
   $('#cards').innerHTML = list.map(r => {
@@ -1062,12 +1064,70 @@ function ingRow(g = { name:'', amount:'', unit:'' }){
 function stepRow(text = ''){
   const d = document.createElement('div');
   d.className = 'step-row';
-  d.innerHTML = '<span class="step-no"></span><textarea class="inp t"></textarea><button class="x" title="この手順を消す">×</button>';
+  d.innerHTML = '<span class="step-no"></span>'
+    + '<textarea class="inp t" placeholder="手順を書く。改行入りのテキストを貼ると、行ごとに分かれます。"></textarea>'
+    + '<button class="x" title="この手順を消す">×</button>';
   d.querySelector('textarea').value = text;
   d.querySelector('.x').addEventListener('click', () => { d.remove(); renumber(); });
   return d;
 }
 function renumber(){ $$('#steps .step-no').forEach((el, i) => el.textContent = (i + 1) + '.'); }
+
+function grow(ta){ ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 2) + 'px'; }
+function growAll(){ $$('#steps textarea').forEach(grow); }
+
+/* 複数行をまとめて貼ったら、改行ごとに1工程へ分ける */
+$('#steps').addEventListener('paste', e => {
+  const ta = e.target.closest('textarea'); if (!ta) return;
+  const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+  if (text.indexOf('\n') === -1) return;          /* 1行ならふつうに貼る */
+  const lines = text.replace(/\r/g, '').split('\n')
+    .map(l => l.replace(NUMBERED, '').trim())
+    .filter(l => l && !SKIP.test(l));
+  if (!lines.length) return;
+  e.preventDefault();
+  const row = ta.closest('.step-row');
+  ta.value = lines[0];
+  let ref = row;
+  for (let i = 1; i < lines.length; i++){
+    const r = stepRow(lines[i]);
+    ref.parentNode.insertBefore(r, ref.nextSibling);
+    ref = r;
+  }
+  renumber(); growAll();
+  toast(lines.length + '工程に分けました');
+});
+$('#steps').addEventListener('input', e => {
+  if (e.target.tagName === 'TEXTAREA') grow(e.target);
+});
+
+/* 材料も同じく、複数行を貼ったら1行ずつに割り振る */
+$('#ings').addEventListener('paste', e => {
+  const inp = e.target.closest('.inp.n'); if (!inp) return;
+  const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+  if (text.indexOf('\n') === -1) return;
+  const lines = text.replace(/\r/g, '').split('\n')
+    .map(l => l.replace(BULLET, '').trim())
+    .filter(l => l && !SKIP.test(l) && !FOOTER.test(l));
+  if (!lines.length) return;
+  e.preventDefault();
+  const row = inp.closest('.ing-row');
+  const put = (r, l) => {
+    const g = parseIngredient(l) || { name:l, amount:'', unit:'' };
+    r.querySelector('.n').value = g.name;
+    r.querySelector('.a').value = g.amount;
+    r.querySelector('.u').value = g.unit;
+  };
+  put(row, lines[0]);
+  let ref = row;
+  for (let i = 1; i < lines.length; i++){
+    const r = ingRow();
+    ref.parentNode.insertBefore(r, ref.nextSibling);
+    put(r, lines[i]);
+    ref = r;
+  }
+  toast(lines.length + '品に分けました');
+});
 
 function fillEditor(d){
   $('#f-title').value = d.title || '';
@@ -1084,6 +1144,7 @@ function fillEditor(d){
   const sc = $('#steps'); sc.innerHTML = '';
   (d.steps && d.steps.length ? d.steps : ['']).forEach(t => sc.appendChild(stepRow(t)));
   renumber();
+  requestAnimationFrame(growAll);
 
   renderDraftImages();
 
@@ -1095,7 +1156,7 @@ function fillEditor(d){
   } else sw.classList.add('hidden');
 }
 function openEditor(){
-  $('#edit-mode').textContent = S.current ? 'なおす' : 'とりこんだ内容をととのえる';
+  $('#edit-mode').textContent = S.current ? 'しゅうせい' : 'とりこんだ内容をととのえる';
   fillEditor(S.draft);
   show('edit');
 }
@@ -1129,7 +1190,7 @@ $('#imgs').addEventListener('change', e => {
 });
 
 $('#add-ing').addEventListener('click', () => { $('#ings').appendChild(ingRow()); });
-$('#add-step').addEventListener('click', () => { $('#steps').appendChild(stepRow()); renumber(); });
+$('#add-step').addEventListener('click', () => { $('#steps').appendChild(stepRow()); renumber(); growAll(); });
 $('#src').addEventListener('change', e => {
   const i = +e.target.value;
   const src = S.draft._sources[i];
@@ -1306,6 +1367,7 @@ function startEdit(scrollTo){
   });
 }
 $('#btn-edit').addEventListener('click', () => startEdit());
+$('#btn-back2').addEventListener('click', () => { S.current = null; show('list'); });
 $$('.edit-jump').forEach(b => b.addEventListener('click', () => startEdit(b.dataset.to)));
 
 $('#pour-raw').addEventListener('click', () => {
@@ -1314,7 +1376,7 @@ $('#pour-raw').addEventListener('click', () => {
   if (!lines.length){ toast('流し込めるテキストがありません'); return; }
   const sc = $('#steps');
   lines.forEach(l => sc.appendChild(stepRow(l.replace(NUMBERED, '').trim())));
-  renumber();
+  renumber(); growAll();
   toast(lines.length + '行を追加しました。いらない行は × で消してください');
 });
 $('#btn-del').addEventListener('click', async () => {
