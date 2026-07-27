@@ -122,7 +122,14 @@ textarea.inp{resize:vertical;min-height:92px}
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);
   padding:14px;margin-bottom:16px;box-shadow:var(--shadow);
 }
-.frow{display:flex;gap:7px;align-items:center;margin-bottom:7px}
+.frow{display:flex;gap:7px;align-items:center;margin-bottom:7px;border-radius:9px;background:var(--card)}
+.frow.dragging{opacity:.75;background:var(--green-pale);box-shadow:var(--shadow)}
+.fhandle{
+  flex:0 0 auto;color:var(--ink-faint);font-size:17px;line-height:1;padding:9px 4px 9px 2px;
+  cursor:grab;touch-action:none;user-select:none;
+}
+.fhandle:active{cursor:grabbing}
+.fhandle:hover{color:var(--ink)}
 .frow .inp{padding:8px 11px}
 .searchbar{margin-bottom:16px}
 .count{font-size:12px;color:var(--ink-faint);letter-spacing:.1em;margin-bottom:10px}
@@ -905,11 +912,58 @@ $('#chips').addEventListener('click', e => {
 });
 
 function renderFolderPanel(){
+  if (drag) return;                       /* ドラッグ中は組み替えない */
   $('#flist').innerHTML = S.folders.map(f =>
-    '<div class="frow"><input class="inp fname" data-id="' + esc(f.id) + '" value="' + esc(f.name) + '">'
+    '<div class="frow" data-id="' + esc(f.id) + '">'
+    + '<span class="fhandle" title="ドラッグで並べ替え">☰</span>'
+    + '<input class="inp fname" data-id="' + esc(f.id) + '" value="' + esc(f.name) + '">'
     + '<button class="x" data-fdel="' + esc(f.id) + '" title="このフォルダを消す">×</button></div>').join('')
     || '<p class="note">まだフォルダがありません。</p>';
 }
+/* 並べ替え：ポインタイベントなので、マウスでも指でも同じコードで動く */
+let drag = null;
+const flist = $('#flist');
+
+flist.addEventListener('pointerdown', e => {
+  const h = e.target.closest('.fhandle'); if (!h) return;
+  e.preventDefault();
+  const row = h.closest('.frow');
+  h.setPointerCapture(e.pointerId);
+  drag = { row, id: e.pointerId };
+  row.classList.add('dragging');
+});
+
+flist.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  e.preventDefault();
+  for (const r of $$('.frow', flist)){
+    if (r === drag.row) continue;
+    const b = r.getBoundingClientRect();
+    const mid = b.top + b.height / 2;
+    const after = drag.row.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING;
+    if (after && e.clientY > mid){ r.parentNode.insertBefore(drag.row, r.nextSibling); break; }
+    if (!after && e.clientY < mid){ r.parentNode.insertBefore(drag.row, r); break; }
+  }
+});
+
+async function endDrag(e){
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  drag.row.classList.remove('dragging');
+  drag = null;
+  const ids = $$('.frow', flist).map(r => r.dataset.id);
+  const same = ids.every((id, i) => S.folders[i] && S.folders[i].id === id);
+  if (same) return;
+  /* 画面はもう並び替わっているので、先にローカルを合わせてから書き込む */
+  S.folders = ids.map(id => S.folders.find(f => f.id === id)).filter(Boolean);
+  renderChips();
+  try {
+    for (let i = 0; i < ids.length; i++)
+      await updateDoc(doc(folderCol(), ids[i]), { order: i });
+  } catch (err){ toast('並び順を保存できませんでした'); }
+}
+flist.addEventListener('pointerup', endDrag);
+flist.addEventListener('pointercancel', endDrag);
+
 $('#flist').addEventListener('change', async e => {
   if (!e.target.classList.contains('fname')) return;
   const name = e.target.value.trim();
@@ -936,7 +990,8 @@ async function addFolder(){
   if (!name) return;
   if (S.folders.some(f => f.name === name)){ toast('同じ名前のフォルダがあります'); return; }
   try {
-    await addDoc(folderCol(), { name, order: S.folders.length, createdAt: serverTimestamp() });
+    const tail = S.folders.reduce((m, f) => Math.max(m, f.order == null ? -1 : f.order), -1);
+    await addDoc(folderCol(), { name, order: tail + 1, createdAt: serverTimestamp() });
     $('#fnew').value = '';
   } catch (e){ toast('作れませんでした'); }
 }
@@ -1311,8 +1366,12 @@ onAuthStateChanged(auth, u => {
   if (S.unsubF){ S.unsubF(); S.unsubF = null; }
   if (!u){ S.recipes = []; S.folders = []; show('auth'); return; }
 
-  S.unsubF = onSnapshot(query(folderCol(), orderBy('createdAt', 'asc')), snap => {
-    S.folders = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+  /* orderBy は order を持たない古いドキュメントを取りこぼすので、
+     取得は無条件、並べ替えは手元でやる。 */
+  S.unsubF = onSnapshot(folderCol(), snap => {
+    S.folders = snap.docs.map(d => Object.assign({ id:d.id }, d.data()))
+      .sort((a, b) => (a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)
+                   || String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
     renderChips(); renderFolderPanel(); renderList();
   }, err => console.warn(err));
   const qy = query(collection(db, 'users', u.uid, 'recipes'), orderBy('createdAt', 'desc'));
