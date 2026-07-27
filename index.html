@@ -108,6 +108,22 @@ textarea.inp{resize:vertical;min-height:92px}
 .capture .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 
 /* ---------- list ---------- */
+.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  white-space:nowrap;font-size:13px;font-weight:500;padding:7px 14px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink-soft);flex:0 0 auto;
+}
+.chip:hover{border-color:var(--green);color:var(--green-dark)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#F3F6F1;font-weight:700}
+.chip .n{font-family:'DM Mono',monospace;font-size:11.5px;opacity:.65;margin-left:5px}
+.chip.gear{padding:7px 11px}
+.fpanel{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px;margin-bottom:16px;box-shadow:var(--shadow);
+}
+.frow{display:flex;gap:7px;align-items:center;margin-bottom:7px}
+.frow .inp{padding:8px 11px}
 .searchbar{margin-bottom:16px}
 .count{font-size:12px;color:var(--ink-faint);letter-spacing:.1em;margin-bottom:10px}
 .cards{display:grid;gap:12px}
@@ -285,6 +301,17 @@ details.raw pre{
     <input type="file" id="cap-file" accept="image/*" multiple hidden>
     <div id="cap-err"></div>
 
+    <div class="chips" id="chips"></div>
+    <div class="fpanel hidden" id="fpanel">
+      <div class="eyebrow">フォルダの整理</div>
+      <div id="flist"></div>
+      <div class="frow" style="margin-top:10px">
+        <input class="inp" id="fnew" type="text" placeholder="新しいフォルダ名">
+        <button class="btn" id="fadd" style="padding:9px 16px;white-space:nowrap">追加</button>
+      </div>
+      <p class="note" style="margin-top:8px">フォルダを消しても、中のレシピは残って未分類に移ります。</p>
+    </div>
+
     <div class="searchbar">
       <input class="inp" id="q" type="search" placeholder="材料・タイトル・タグで探す">
     </div>
@@ -338,6 +365,11 @@ details.raw pre{
       <button class="addline" id="add-img">＋ 画像を追加</button>
       <input type="file" id="img-file" accept="image/*" multiple hidden>
       <p class="note" style="margin-top:6px">材料か作り方かを選んでおくと、詳細画面のそれぞれの場所に並びます。</p>
+    </div>
+
+    <div class="field">
+      <label for="f-folder">フォルダ</label>
+      <select class="inp" id="f-folder"></select>
     </div>
 
     <div class="field">
@@ -462,7 +494,8 @@ function toast(msg){
 }
 
 const S = { user:null, recipes:[], view:'auth', draft:null, current:null, checked:new Set(), unsub:null,
-            capImages:[], draftImages:[], removedImages:[], detailImages:[] };
+            capImages:[], draftImages:[], removedImages:[], detailImages:[],
+            folders:[], folder:null, unsubF:null };
 
 /* ============================================================
    画像
@@ -814,6 +847,7 @@ $('#btn-cap').addEventListener('click', async () => {
       }, parseRecipe(val));
     }
     S.current = null;
+    S.draft.folderId = S.folder || '';
     S.draftImages = S.capImages.slice();
     S.removedImages = [];
     S.capImages = [];
@@ -843,23 +877,95 @@ function show(v){
 $('#btn-back').addEventListener('click', () => show(S.current && S.view === 'edit' ? 'detail' : 'list'));
 $('#btn-new').addEventListener('click', () => { $('#cap').focus(); window.scrollTo({ top:0, behavior:'smooth' }); });
 
+/* ---- フォルダ ---- */
+const folderCol = () => collection(db, 'users', S.user.uid, 'folders');
+const folderName = id => { const f = S.folders.find(x => x.id === id); return f ? f.name : ''; };
+const isLoose = r => !r.folderId || !S.folders.some(f => f.id === r.folderId);
+
+function renderChips(){
+  const count = fn => S.recipes.filter(fn).length;
+  let h = '<button class="chip' + (S.folder === null ? ' on' : '') + '" data-f="__all">'
+        + 'すべて<span class="n">' + S.recipes.length + '</span></button>';
+  h += S.folders.map(f =>
+        '<button class="chip' + (S.folder === f.id ? ' on' : '') + '" data-f="' + esc(f.id) + '">'
+        + esc(f.name) + '<span class="n">' + count(r => r.folderId === f.id) + '</span></button>').join('');
+  const loose = count(isLoose);
+  if (loose || S.folders.length)
+    h += '<button class="chip' + (S.folder === '' ? ' on' : '') + '" data-f="__none">'
+       + '未分類<span class="n">' + loose + '</span></button>';
+  h += '<button class="chip gear" data-f="__manage" title="フォルダの整理">⚙</button>';
+  $('#chips').innerHTML = h;
+}
+$('#chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const v = b.dataset.f;
+  if (v === '__manage'){ $('#fpanel').classList.toggle('hidden'); renderFolderPanel(); return; }
+  S.folder = v === '__all' ? null : (v === '__none' ? '' : v);
+  renderChips(); renderList();
+});
+
+function renderFolderPanel(){
+  $('#flist').innerHTML = S.folders.map(f =>
+    '<div class="frow"><input class="inp fname" data-id="' + esc(f.id) + '" value="' + esc(f.name) + '">'
+    + '<button class="x" data-fdel="' + esc(f.id) + '" title="このフォルダを消す">×</button></div>').join('')
+    || '<p class="note">まだフォルダがありません。</p>';
+}
+$('#flist').addEventListener('change', async e => {
+  if (!e.target.classList.contains('fname')) return;
+  const name = e.target.value.trim();
+  if (!name) return renderFolderPanel();
+  try { await updateDoc(doc(folderCol(), e.target.dataset.id), { name }); }
+  catch (err){ toast('名前を変えられませんでした'); }
+});
+$('#flist').addEventListener('click', async e => {
+  const id = e.target.dataset.fdel; if (!id) return;
+  const inside = S.recipes.filter(r => r.folderId === id);
+  const msg = '「' + folderName(id) + '」を消します。'
+            + (inside.length ? '中の' + inside.length + '件は未分類に移ります。' : '');
+  if (!confirm(msg)) return;
+  try {
+    for (const r of inside)
+      await updateDoc(doc(db, 'users', S.user.uid, 'recipes', r.id), { folderId: '' });
+    await deleteDoc(doc(folderCol(), id));
+    if (S.folder === id) S.folder = null;
+    toast('フォルダを消しました');
+  } catch (err){ toast('消せませんでした'); }
+});
+async function addFolder(){
+  const name = $('#fnew').value.trim();
+  if (!name) return;
+  if (S.folders.some(f => f.name === name)){ toast('同じ名前のフォルダがあります'); return; }
+  try {
+    await addDoc(folderCol(), { name, order: S.folders.length, createdAt: serverTimestamp() });
+    $('#fnew').value = '';
+  } catch (e){ toast('作れませんでした'); }
+}
+$('#fadd').addEventListener('click', addFolder);
+$('#fnew').addEventListener('keydown', e => { if (e.key === 'Enter') addFolder(); });
+
 /* ---- 一覧 ---- */
 function renderList(){
   const q = $('#q').value.trim().toLowerCase();
   const list = S.recipes.filter(r => {
+    if (S.folder === '' && !isLoose(r)) return false;
+    if (S.folder && r.folderId !== S.folder) return false;
     if (!q) return true;
     const hay = [r.title, (r.tags || []).join(' '), (r.ingredients || []).map(i => i.name).join(' '), r.memo, r.rawText]
       .join(' ').toLowerCase();
     return hay.includes(q);
   });
-  $('#count').textContent = S.recipes.length ? (q ? list.length + ' / ' + S.recipes.length + ' 件' : S.recipes.length + ' 件') : '';
+  const scope = S.folder === null ? S.recipes.length
+              : S.recipes.filter(r => S.folder === '' ? isLoose(r) : r.folderId === S.folder).length;
+  $('#count').textContent = S.recipes.length ? (q ? list.length + ' / ' + scope + ' 件' : scope + ' 件') : '';
 
   if (!S.recipes.length){
     $('#cards').innerHTML = '<div class="empty"><strong>まだ何も控えていません</strong>上のらんに、気になった動画のURLを貼るところから。</div>';
     return;
   }
   if (!list.length){
-    $('#cards').innerHTML = '<div class="empty"><strong>見つかりませんでした</strong>別のことばで探してみてください。</div>';
+    $('#cards').innerHTML = q
+      ? '<div class="empty"><strong>見つかりませんでした</strong>別のことばで探してみてください。</div>'
+      : '<div class="empty"><strong>このフォルダは空です</strong>レシピの「直す」からフォルダを選ぶと入ります。</div>';
     return;
   }
   $('#cards').innerHTML = list.map(r => {
@@ -875,6 +981,7 @@ function renderList(){
       '<div class="meta">' + badge +
       (n ? '<span>材料 ' + n + '</span>' : '') +
       (r.servings ? '<span>' + esc(r.servings) + '</span>' : '') +
+      (S.folder === null && !isLoose(r) ? '<span>' + esc(folderName(r.folderId)) + '</span>' : '') +
       ((r.tags || []).slice(0, 2).map(t => '<span>#' + esc(t) + '</span>').join('')) +
       '</div></div></button>';
   }).join('');
@@ -911,6 +1018,8 @@ function fillEditor(d){
   $('#f-title').value = d.title || '';
   $('#f-url').value   = d.url || '';
   $('#f-serv').value  = d.servings || '';
+  $('#f-folder').innerHTML = '<option value="">未分類</option>' + S.folders.map(f =>
+    '<option value="' + esc(f.id) + '"' + (d.folderId === f.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('');
   $('#f-tags').value  = (d.tags || []).join(', ');
   $('#f-memo').value  = d.memo || '';
   $('#raw').textContent = d.rawText || '（なし）';
@@ -996,7 +1105,7 @@ function collect(){
     title: $('#f-title').value.trim() || '名前のないレシピ', thumbnail: S.draft.thumbnail || '',
     servings: $('#f-serv').value.trim(), ingredients, steps, tags,
     memo: $('#f-memo').value.trim(), rawText: S.draft.rawText || '',
-    imageCount: S.draftImages.length
+    folderId: $('#f-folder').value, imageCount: S.draftImages.length
   };
 }
 async function saveImages(recipeId){
@@ -1075,7 +1184,8 @@ function openDetail(r){
     (r.source === 'youtube' ? '<span class="pill">YouTube</span>'
      : r.source === 'image'  ? '<span class="pill g">スクショ</span>'
      : '<span class="pill g">メモ</span>') +
-    (r.servings ? '<span>' + esc(r.servings) + '</span>' : '');
+    (r.servings ? '<span>' + esc(r.servings) + '</span>' : '') +
+    (!isLoose(r) ? '<span>' + esc(folderName(r.folderId)) + '</span>' : '');
 
   const open = $('#d-open');
   if (r.url){ open.href = r.url; open.classList.remove('hidden'); }
@@ -1198,10 +1308,17 @@ $('#btn-out').addEventListener('click', () => signOut(auth));
 onAuthStateChanged(auth, u => {
   S.user = u;
   if (S.unsub){ S.unsub(); S.unsub = null; }
-  if (!u){ S.recipes = []; show('auth'); return; }
+  if (S.unsubF){ S.unsubF(); S.unsubF = null; }
+  if (!u){ S.recipes = []; S.folders = []; show('auth'); return; }
+
+  S.unsubF = onSnapshot(query(folderCol(), orderBy('createdAt', 'asc')), snap => {
+    S.folders = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+    renderChips(); renderFolderPanel(); renderList();
+  }, err => console.warn(err));
   const qy = query(collection(db, 'users', u.uid, 'recipes'), orderBy('createdAt', 'desc'));
   S.unsub = onSnapshot(qy, snap => {
     S.recipes = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+    renderChips();
     renderList();
     if (S.current){
       const fresh = S.recipes.find(r => r.id === S.current.id);
