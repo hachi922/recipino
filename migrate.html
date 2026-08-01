@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16202B">
+<title>Recipino 移行ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16202B; --ink-soft:#5C6874; --ink-faint:#939DA6;
+  --paper:#EDF0EA; --card:#FFFFFF; --line:#D7DED4;
+  --green:#2E7D5B; --green-dark:#215C43; --green-pale:#E4EEE8;
+  --citrus:#C8801A; --citrus-pale:#FBF0DC; --danger:#AC4230;
+  --r:14px;
+  --shadow:0 1px 2px rgba(22,32,43,.06), 0 8px 24px -14px rgba(22,32,43,.28);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;
+  font-size:15px; line-height:1.75; -webkit-font-smoothing:antialiased; overflow-wrap:anywhere;
+  padding-bottom:48px;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2.5px solid var(--citrus);outline-offset:2px;border-radius:4px}
+
+.bar{
+  position:sticky;top:0;z-index:40;background:var(--ink);color:#F3F6F1;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  display:flex;align-items:baseline;gap:10px;
+}
+.brand{font-family:'Pacifico',cursive;font-size:22px;letter-spacing:.5px;line-height:1.2}
+.bar .sub{font-size:12px;color:#A9B6AE;letter-spacing:.08em}
+
+.wrap{max-width:720px;margin:0 auto;padding:18px 14px}
+
+.step{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);margin:0 0 14px;overflow:hidden;
+}
+.step > .hd{
+  display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);
+}
+.step[data-done="1"] > .hd{background:var(--green-pale);border-bottom-color:#CBDED3}
+.num{
+  font-family:'DM Mono',monospace;font-size:12px;font-weight:500;
+  width:22px;height:22px;flex:none;border-radius:50%;
+  background:var(--ink);color:#F3F6F1;display:grid;place-items:center;
+}
+.step[data-done="1"] .num{background:var(--green)}
+.hd h2{font-size:14px;font-weight:700;letter-spacing:.02em}
+.bd{padding:14px 16px}
+.step[disabled] .bd{opacity:.4;pointer-events:none}
+
+.btn{
+  background:var(--green);color:#fff;border-radius:10px;padding:11px 18px;
+  font-weight:700;font-size:14px;letter-spacing:.02em;
+}
+.btn:disabled{background:var(--ink-faint);cursor:default}
+.btn.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line);font-weight:500}
+.btn.warn{background:transparent;color:var(--danger);border:1px solid #E2C5BF;font-weight:500}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+label.chk{display:flex;gap:9px;align-items:flex-start;padding:7px 0;cursor:pointer;font-size:14px}
+label.chk input{margin-top:6px;accent-color:var(--green);width:16px;height:16px;flex:none}
+label.chk .d{display:block;font-size:12px;color:var(--ink-soft);line-height:1.6}
+.tagin{
+  display:inline-block;margin:2px 0 0 6px;width:150px;padding:3px 9px;
+  border:1px solid var(--line);border-radius:999px;background:#FAFBF9;
+  font-family:'DM Mono',monospace;font-size:12.5px;
+}
+
+.note{font-size:12.5px;color:var(--ink-soft);line-height:1.7}
+.who{font-size:13px;color:var(--ink-soft)}
+.who b{color:var(--ink);font-weight:500}
+
+input[type=file]{
+  width:100%;border:1.5px dashed var(--line);border-radius:10px;padding:16px;background:#FAFBF9;
+  font-size:13px;
+}
+
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.stat{background:var(--green-pale);border-radius:9px;padding:8px 12px;min-width:88px}
+.stat b{display:block;font-family:'DM Mono',monospace;font-size:19px;font-weight:500;line-height:1.3}
+.stat span{font-size:11px;color:var(--ink-soft);letter-spacing:.04em}
+.stat.mute{background:#F0F1EE}
+.stat.warn{background:var(--citrus-pale)}
+
+.list{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#FAFBF9}
+.item{padding:9px 12px;border-bottom:1px solid #E6EAE3;font-size:13px;line-height:1.6}
+.item:last-child{border-bottom:none}
+.item .t{font-weight:500}
+.item .m{font-size:11.5px;color:var(--ink-soft);font-family:'DM Mono',monospace;letter-spacing:.02em}
+.item.skip{background:#F3F1EC;color:var(--ink-faint)}
+.item.skip .t{font-weight:400;text-decoration:line-through}
+.tag{
+  display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:999px;
+  background:var(--card);border:1px solid var(--line);color:var(--ink-soft);margin-right:5px;
+}
+.tag.new{background:var(--citrus-pale);border-color:#EBD9B4;color:#8A5A12}
+
+.prog{height:7px;border-radius:99px;background:#DDE3DA;overflow:hidden;margin:12px 0 8px}
+.prog i{display:block;height:100%;width:0;background:var(--green);transition:width .18s}
+.log{
+  font-family:'DM Mono',monospace;font-size:11.5px;line-height:1.9;color:var(--ink-soft);
+  max-height:160px;overflow:auto;white-space:pre-wrap;
+}
+.err{color:var(--danger);font-size:13px;margin-top:8px}
+.done-msg{background:var(--green-pale);border-radius:10px;padding:12px 14px;font-size:14px;font-weight:500}
+hr.sep{border:none;border-top:1px solid var(--line);margin:16px 0}
+h3.mini{font-size:12px;letter-spacing:.08em;color:var(--ink-faint);font-weight:700;margin:0 0 8px}
+</style>
+</head>
+<body>
+
+<div class="bar"><span class="brand">Recipino</span><span class="sub">移行ツール</span></div>
+
+<div class="wrap">
+
+  <section class="step" id="s1">
+    <div class="hd"><span class="num">1</span><h2>Recipinoと同じアカウントで入る</h2></div>
+    <div class="bd">
+      <div class="row">
+        <button class="btn" id="btn-login">Googleでサインイン</button>
+        <span class="who" id="who"></span>
+      </div>
+      <p class="note" style="margin-top:10px">Pantryno / Recipino と同じアカウントで入ってください。別のアカウントだと、そのアカウントの側にレシピが入ります。</p>
+    </div>
+  </section>
+
+  <section class="step" id="s2" disabled>
+    <div class="hd"><span class="num">2</span><h2>Pantrynoのバックアップを選ぶ</h2></div>
+    <div class="bd">
+      <input type="file" id="file" accept="application/json,.json">
+      <p class="note" style="margin-top:10px">ファイルはこの端末の中だけで読みます。どこにも送信しません。</p>
+      <div class="err" id="e2"></div>
+    </div>
+  </section>
+
+  <section class="step" id="s3" disabled>
+    <div class="hd"><span class="num">3</span><h2>取り込み方を決めて中身を確かめる</h2></div>
+    <div class="bd">
+      <label class="chk"><input type="checkbox" id="o-folder" checked><span>カテゴリをフォルダとして作る<span class="d">Pantrynoのカテゴリ名と同じフォルダをRecipinoに用意して、そこに入れます</span></span></label>
+      <label class="chk"><input type="checkbox" id="o-empty"><span>レシピが1件もないカテゴリも作る<span class="d">空のフォルダも先に作っておきたいとき</span></span></label>
+      <label class="chk"><input type="checkbox" id="o-label" checked><span>材料・工程の見出しを残す<span class="d">［A］や「後入れ」などのグループ名を、【　】付きの行として差し込みます</span></span></label>
+      <label class="chk"><input type="checkbox" id="o-tag" checked><span>全部に共通のタグを付ける
+        <input class="tagin" id="tag-name" type="text" value="Pantryno" spellcheck="false">
+        <span class="d">取り込んだレシピすべてに同じタグを付けます。どこから来たレシピか後から分かります</span></span></label>
+      <label class="chk"><input type="checkbox" id="o-fav" checked><span>お気に入りを「定番」タグにする<span class="d">Pantrynoで★が付いていたレシピに「定番」タグを付けます</span></span></label>
+      <label class="chk"><input type="checkbox" id="o-dup" checked><span>同じ名前のレシピは飛ばす<span class="d">Recipinoに同じ名前のレシピが既にあれば書き込みません</span></span></label>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost" id="btn-preview">中身を確かめる</button>
+      </div>
+      <div id="preview" style="margin-top:14px;display:none">
+        <div class="stats" id="stats"></div>
+        <h3 class="mini" id="fold-h" style="display:none">フォルダ</h3>
+        <div id="folders" style="margin-bottom:14px"></div>
+        <h3 class="mini">レシピ</h3>
+        <div class="list" id="items"></div>
+      </div>
+      <div class="err" id="e3"></div>
+    </div>
+  </section>
+
+  <section class="step" id="s4" disabled>
+    <div class="hd"><span class="num">4</span><h2>Recipinoに書き込む</h2></div>
+    <div class="bd">
+      <div class="row">
+        <button class="btn" id="btn-run">書き込む</button>
+        <span class="note" id="run-note"></span>
+      </div>
+      <div class="prog" id="progwrap" style="display:none"><i id="prog"></i></div>
+      <div class="log" id="log"></div>
+      <div class="err" id="e4"></div>
+      <hr class="sep">
+      <h3 class="mini">やり直したいとき</h3>
+      <p class="note" style="margin-bottom:10px">このツールで入れたレシピだけを消します。Recipinoで自分が控えたレシピは残ります。フォルダは消えないので、いらなければRecipino側で削除してください。</p>
+      <button class="btn warn" id="btn-undo">このツールで入れた分を削除</button>
+    </div>
+  </section>
+
+</div>
+
+<script type="module">
+/* ========== 設定：Recipino / Pantryno と同じFirebaseプロジェクト ========== */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyAum5GxFtfiSBmmLqQRWusCJxZKzvmW0ow",
+  authDomain:        "panyryno.firebaseapp.com",
+  projectId:         "panyryno",
+  storageBucket:     "panyryno.firebasestorage.app",
+  messagingSenderId: "678099181033",
+  appId:             "1:678099181033:web:0b84a8dd7dea39ee603f78"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, query, where,
+         writeBatch, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app  = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const S = { user:null, backup:null, plan:null, existing:null };
+
+function enable(id, on){ const el = $(id); on ? el.removeAttribute('disabled') : el.setAttribute('disabled',''); }
+function done(id, on){ $(id).dataset.done = on ? '1' : '0'; }
+function say(el, msg){ $(el).textContent = msg || ''; }
+function logln(t){ const l = $('#log'); l.textContent += t + '\n'; l.scrollTop = l.scrollHeight; }
+
+/* ---------- 1. サインイン ---------- */
+$('#btn-login').addEventListener('click', async () => {
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+  catch (e){ say('#e2', 'サインインできませんでした：' + e.message); }
+});
+onAuthStateChanged(auth, u => {
+  S.user = u;
+  $('#who').innerHTML = u ? '<b>' + esc(u.email) + '</b> で参加中' : '';
+  $('#btn-login').textContent = u ? 'アカウントを切り替える' : 'Googleでサインイン';
+  done('#s1', !!u); enable('#s2', !!u);
+});
+
+/* ---------- Firestoreの居場所 ---------- */
+const recipeCol = () => collection(db, 'users', S.user.uid, 'recipes');
+const folderCol = () => collection(db, 'users', S.user.uid, 'folders');
+
+/* ---------- 2. ファイル ---------- */
+$('#file').addEventListener('change', async e => {
+  say('#e2',''); say('#e3','');
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const json = JSON.parse(await f.text());
+    if (!Array.isArray(json.recipes)) throw new Error('recipes が見つかりません。Pantrynoのバックアップファイルか確認してください。');
+    S.backup = json;
+    done('#s2', true); enable('#s3', true);
+    $('#preview').style.display = 'none'; enable('#s4', false); done('#s4', false);
+  } catch (err){ say('#e2', '読めませんでした：' + err.message); }
+});
+
+/* ---------- 変換 ---------- */
+const NUM  = '(?:[0-9０-９]+(?:[.．][0-9０-９]+)?(?:[/／][0-9０-９]+)?|[½¼¾⅓⅔⅛])';
+const UNIT = '(?:大さじ|小さじ|カップ|グラム|キロ|リットル|cc|ｃｃ|ml|ｍｌ|kg|ｋｇ|[gｇ]|[Llℓ]|個|本|枚|片|束|袋|缶|パック|尾|丁|玉|株|房|杯|さじ|かけ|切れ|人分|合|滴|振り|つまみ|粒|節|膳)';
+function splitQty(q){
+  q = String(q || '').trim(); if (!q) return { amount:'', unit:'' };
+  let m = q.match(new RegExp('^(大さじ|小さじ|カップ)\\s*(' + NUM + ')$'));
+  if (m) return { amount:m[2], unit:m[1] };
+  m = q.match(new RegExp('^(' + NUM + ')\\s*(' + UNIT + ')?$'));
+  if (m) return { amount:m[1], unit:m[2] || '' };
+  return { amount:q, unit:'' };
+}
+function youtubeId(url){
+  const m = String(url || '').match(/(?:youtu\.be\/|youtube\.com\/(?:shorts\/|live\/|embed\/|v\/|watch\?(?:[^#]*&)?v=))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function mark(label){
+  const s = String(label).replace(/^[\[［【(（]+|[\]］】)）]+$/g, '').trim();
+  return '【' + (s || String(label).trim()) + '】';
+}
+function convert(r, opt){
+  const url = String(r.url || '').trim();
+  const vid = youtubeId(url);
+  const ingredients = [];
+  (r.ingGroups || []).forEach(g => {
+    if (opt.label && g.label) ingredients.push({ name:mark(g.label), amount:'', unit:'' });
+    (g.ings || []).forEach(i => {
+      const name = String(i.name || '').trim(); if (!name) return;
+      ingredients.push(Object.assign({ name }, splitQty(i.qty)));
+    });
+  });
+  const steps = [];
+  (r.stepGroups || []).forEach(g => {
+    const arr = (g.steps || []).map(s => String(s).trim()).filter(Boolean);
+    if (opt.label && g.label && arr.length) arr[0] = mark(g.label) + '\n' + arr[0];
+    steps.push(...arr);
+  });
+  const tags = [];
+  if (opt.tag) tags.push(opt.tag);
+  if (opt.fav && r.fav) tags.push('定番');
+  return {
+    source: vid ? 'youtube' : (url ? 'web' : 'text'),
+    url, videoId: vid,
+    title: String(r.name || '').trim() || '名前のないレシピ',
+    thumbnail: vid ? 'https://i.ytimg.com/vi/' + vid + '/mqdefault.jpg' : '',
+    servings: String(r.sv || '').trim(),
+    ingredients, steps, tags,
+    memo: '', rawText: '',
+    folderId: '', imageCount: 0,
+    migratedFrom: 'pantryno', pantrynoId: r.id ?? null
+  };
+}
+
+/* ---------- 3. プレビュー ---------- */
+function options(){
+  const tag = $('#o-tag').checked ? $('#tag-name').value.trim().replace(/^[#＃]+/, '') : '';
+  return { folder:$('#o-folder').checked, empty:$('#o-empty').checked, tag,
+           label:$('#o-label').checked, fav:$('#o-fav').checked, dup:$('#o-dup').checked };
+}
+$('#btn-preview').addEventListener('click', async () => {
+  const b = $('#btn-preview'); b.disabled = true; b.textContent = '読み込み中…'; say('#e3','');
+  try {
+    const [fSnap, rSnap] = await Promise.all([getDocs(folderCol()), getDocs(recipeCol())]);
+    S.existing = {
+      folders: fSnap.docs.map(d => ({ id:d.id, name:(d.data().name || '').trim(), order:d.data().order ?? 0 })),
+      titles: new Set(rSnap.docs.map(d => (d.data().title || '').trim())),
+      pids:   new Set(rSnap.docs.map(d => d.data().pantrynoId).filter(v => v !== undefined && v !== null))
+    };
+    buildPlan();
+    renderPreview();
+    done('#s3', true); enable('#s4', true);
+  } catch (err){ say('#e3', '読み込めませんでした：' + err.message); }
+  b.disabled = false; b.textContent = '中身を確かめる';
+});
+
+function buildPlan(){
+  const opt = options();
+  const cats = S.backup.recCats || [];
+  const src  = (S.backup.recipes || []).slice().sort((a,b) => (a.id ?? 0) - (b.id ?? 0));
+
+  const used = new Set(src.map(r => cats[r.ci]).filter(Boolean));
+  const wantNames = opt.folder ? cats.filter(n => n && (opt.empty || used.has(n))) : [];
+  const have = new Map(S.existing.folders.map(f => [f.name, f.id]));
+  const folders = wantNames.map(name => ({ name, id:have.get(name) || null, isNew:!have.has(name) }));
+
+  const items = src.map(r => {
+    const data = convert(r, opt);
+    const cat  = cats[r.ci] || '';
+    let skip = null;
+    if (S.existing.pids.has(r.id)) skip = 'このツールで取り込み済み';
+    else if (opt.dup && S.existing.titles.has(data.title)) skip = '同じ名前がRecipinoにある';
+    return { data, cat, skip };
+  });
+  S.plan = { folders, items, opt };
+}
+
+function renderPreview(){
+  const { folders, items } = S.plan;
+  const go = items.filter(i => !i.skip), skipped = items.filter(i => i.skip);
+  const newF = folders.filter(f => f.isNew);
+
+  $('#stats').innerHTML =
+    '<div class="stat"><b>' + go.length + '</b><span>書き込む</span></div>' +
+    (skipped.length ? '<div class="stat warn"><b>' + skipped.length + '</b><span>飛ばす</span></div>' : '') +
+    '<div class="stat mute"><b>' + newF.length + '</b><span>新しいフォルダ</span></div>' +
+    '<div class="stat mute"><b>' + go.reduce((n,i) => n + i.data.ingredients.length, 0) + '</b><span>材料の行</span></div>' +
+    '<div class="stat mute"><b>' + go.reduce((n,i) => n + i.data.steps.length, 0) + '</b><span>工程</span></div>';
+
+  $('#fold-h').style.display = folders.length ? '' : 'none';
+  $('#folders').innerHTML = folders.map(f =>
+    '<span class="tag' + (f.isNew ? ' new' : '') + '">' + esc(f.name) + (f.isNew ? ' 新規' : '') + '</span>').join('');
+
+  $('#items').innerHTML = items.map(i =>
+    '<div class="item' + (i.skip ? ' skip' : '') + '">' +
+      '<div class="t">' + esc(i.data.title) + '</div>' +
+      '<div class="m">' + (i.cat ? esc(i.cat) + ' · ' : '') +
+        '材料' + i.data.ingredients.length + ' · 工程' + i.data.steps.length +
+        (i.data.videoId ? ' · YouTube' : (i.data.url ? ' · リンクあり' : '')) +
+        (i.data.tags.length ? ' · ' + i.data.tags.map(t => '#' + esc(t)).join(' ') : '') +
+        (i.skip ? ' · ' + esc(i.skip) : '') +
+      '</div></div>').join('');
+
+  $('#preview').style.display = '';
+  $('#run-note').textContent = go.length ? go.length + '件を書き込みます' : '書き込むレシピがありません';
+  $('#btn-run').disabled = !go.length;
+}
+$('#tag-name').addEventListener('input', () => { if (S.existing){ buildPlan(); renderPreview(); } });
+['#o-folder','#o-empty','#o-label','#o-fav','#o-dup','#o-tag'].forEach(id =>
+  $(id).addEventListener('change', () => {
+    if (!S.existing) return;
+    buildPlan(); renderPreview();
+  }));
+
+/* ---------- 4. 書き込み ---------- */
+$('#btn-run').addEventListener('click', async () => {
+  const go = S.plan.items.filter(i => !i.skip);
+  if (!go.length) return;
+  if (!confirm('Recipinoに' + go.length + '件のレシピを書き込みます。よろしいですか？')) return;
+
+  const b = $('#btn-run'); b.disabled = true; say('#e4',''); $('#log').textContent = '';
+  $('#progwrap').style.display = ''; $('#prog').style.width = '0%';
+
+  try {
+    /* フォルダを先に作る */
+    const idByName = new Map(S.existing.folders.map(f => [f.name, f.id]));
+    let tail = S.existing.folders.reduce((m,f) => Math.max(m, f.order || 0), -1);
+    for (const f of S.plan.folders){
+      if (idByName.has(f.name)) continue;
+      const ref = await addDoc(folderCol(), { name:f.name, order:++tail, createdAt:serverTimestamp() });
+      idByName.set(f.name, ref.id);
+      logln('フォルダを作成： ' + f.name);
+    }
+
+    /* 並び順を保つため、Pantrynoのid順に1秒ずつずらした日時を入れる */
+    const base = Date.now() - go.length * 1000;
+    let n = 0;
+    for (let s = 0; s < go.length; s += 300){
+      const chunk = go.slice(s, s + 300);
+      const batch = writeBatch(db);
+      chunk.forEach((i, k) => {
+        const when = new Date(base + (s + k) * 1000);
+        const data = Object.assign({}, i.data, {
+          folderId: (S.plan.opt.folder && idByName.get(i.cat)) || '',
+          createdAt: when, updatedAt: when
+        });
+        batch.set(doc(recipeCol()), data);
+      });
+      await batch.commit();
+      n += chunk.length;
+      $('#prog').style.width = Math.round(n / go.length * 100) + '%';
+      logln('書き込み ' + n + ' / ' + go.length);
+    }
+
+    logln('完了しました。');
+    $('#log').insertAdjacentHTML('afterend',
+      '<div class="done-msg" style="margin-top:10px">' + n + '件をRecipinoに入れました。アプリを開き直すと出てきます。</div>');
+    done('#s4', true);
+    S.existing = null;
+  } catch (err){
+    say('#e4', '途中で止まりました：' + err.message + '（もう一度「中身を確かめる」を押すと、入った分は自動で飛ばされます）');
+    b.disabled = false;
+  }
+});
+
+/* ---------- やり直し ---------- */
+$('#btn-undo').addEventListener('click', async () => {
+  if (!S.user) return say('#e4', 'サインインしてください。');
+  if (!confirm('このツールで入れたレシピをすべて削除します。よろしいですか？')) return;
+  const b = $('#btn-undo'); b.disabled = true; say('#e4','');
+  try {
+    const snap = await getDocs(query(recipeCol(), where('migratedFrom', '==', 'pantryno')));
+    logln('削除対象： ' + snap.size + '件');
+    let n = 0;
+    for (const d of snap.docs){ await deleteDoc(d.ref); logln('削除 ' + (++n) + ' / ' + snap.size); }
+    logln('削除しました。');
+    S.existing = null;
+  } catch (err){ say('#e4', '削除できませんでした：' + err.message); }
+  b.disabled = false;
+});
+</script>
+</body>
+</html>
