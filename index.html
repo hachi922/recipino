@@ -113,29 +113,36 @@ textarea.inp{resize:vertical;min-height:92px}
 .capture .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 
 /* ---------- list ---------- */
-.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{
-  white-space:nowrap;font-size:13px;font-weight:500;padding:7px 14px;border-radius:999px;
-  border:1px solid var(--line);background:var(--card);color:var(--ink-soft);flex:0 0 auto;
+.folder{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:9px;overflow:hidden}
+.folder.dragging{opacity:.7;box-shadow:var(--shadow)}
+.fh{display:flex;align-items:center;gap:8px;padding:11px 12px;background:var(--green-pale);width:100%;text-align:left;cursor:pointer}
+.fh:hover{background:#DCEAE2}
+.fh .chev{font-size:12px;color:var(--ink-soft);transition:transform .18s ease;flex:0 0 12px}
+.fh .chev.open{transform:rotate(90deg)}
+.fh .nm{font-size:14.5px;font-weight:700;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fh .ct{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink-soft);flex:0 0 auto}
+.fh.loose{background:#E9ECE6}
+.facts{display:flex;gap:1px;flex:0 0 auto}
+.facts button{width:29px;height:29px;border-radius:7px;color:var(--ink-soft);font-size:13px;display:grid;place-items:center}
+.facts button:hover{background:rgba(255,255,255,.85);color:var(--ink)}
+.facts button.del:hover{color:var(--danger)}
+.fdrag{flex:0 0 auto;color:var(--ink-faint);font-size:14px;cursor:grab;touch-action:none;user-select:none;padding:3px 1px}
+.fdrag:active{cursor:grabbing}
+.frename{flex:1;min-width:0;padding:5px 9px;border:1px solid var(--green);border-radius:7px;font-size:14px;background:#fff}
+.fbody{border-top:1px solid var(--line)}
+.fempty{padding:13px 14px;font-size:12.5px;color:var(--ink-faint)}
+.rrow{display:flex;gap:11px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);width:100%;text-align:left;background:var(--card)}
+.rrow:last-child{border-bottom:none}
+.rrow:hover{background:#F6F9F4}
+.rrow .th{width:54px;height:54px;flex:0 0 54px;border-radius:8px;background:var(--ink) center/cover no-repeat;display:grid;place-items:center;color:rgba(243,246,241,.45);font-size:9px}
+.rrow .tx{flex:1;min-width:0}
+.rrow h3{font-family:'Shippori Mincho',serif;font-size:14.5px;font-weight:600;line-height:1.45;margin-bottom:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.target-note{
+  background:var(--citrus-pale);border-radius:9px;padding:8px 12px;font-size:12.5px;
+  display:flex;align-items:center;gap:10px;margin-bottom:12px;
 }
-.chip:hover{border-color:var(--green);color:var(--green-dark)}
-.chip.on{background:var(--ink);border-color:var(--ink);color:#F3F6F1;font-weight:700}
-.chip .n{font-family:'DM Mono',monospace;font-size:11.5px;opacity:.65;margin-left:5px}
-.chip.gear{padding:7px 11px}
-.fpanel{
-  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-  padding:14px;margin-bottom:16px;box-shadow:var(--shadow);
-}
-.frow{display:flex;gap:7px;align-items:center;margin-bottom:7px;border-radius:9px;background:var(--card)}
-.frow.dragging{opacity:.75;background:var(--green-pale);box-shadow:var(--shadow)}
-.fhandle{
-  flex:0 0 auto;color:var(--ink-faint);font-size:17px;line-height:1;padding:9px 4px 9px 2px;
-  cursor:grab;touch-action:none;user-select:none;
-}
-.fhandle:active{cursor:grabbing}
-.fhandle:hover{color:var(--ink)}
-.frow .inp{padding:8px 11px}
+.target-note button{margin-left:auto;font-size:12px;color:var(--ink-soft);text-decoration:underline}
 .searchbar{margin-bottom:16px}
 .count{font-size:12px;color:var(--ink-faint);letter-spacing:.1em;margin-bottom:10px}
 .cards{display:grid;gap:12px}
@@ -217,6 +224,12 @@ details.raw pre{
   border-radius:12px;overflow:hidden;margin-bottom:26px;
 }
 .player.vertical{aspect-ratio:9/16;max-width:330px;margin-inline:auto}
+.player.ig{aspect-ratio:auto;height:640px;max-width:420px;margin-inline:auto;background:#fff}
+.embed-btn{
+  width:100%;border:1px dashed var(--line);border-radius:12px;padding:12px;
+  font-size:13.5px;color:var(--ink-soft);margin-bottom:22px;
+}
+.embed-btn:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-pale)}
 .player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .sec{margin-bottom:34px}
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;border-bottom:2px solid var(--ink);padding-bottom:7px}
@@ -297,6 +310,7 @@ details.raw pre{
 
   <!-- 一覧 -->
   <section class="view" id="v-list">
+    <div class="target-note hidden" id="target-note"></div>
     <div class="capture">
       <div class="eyebrow">とりこむ</div>
       <textarea id="cap" placeholder="YouTubeのURLを貼る。&#10;または、材料と作り方のテキストをそのまま貼る。"></textarea>
@@ -312,22 +326,15 @@ details.raw pre{
     <input type="file" id="cap-file" accept="image/*" multiple hidden>
     <div id="cap-err"></div>
 
-    <div class="chips" id="chips"></div>
-    <div class="fpanel hidden" id="fpanel">
-      <div class="eyebrow">フォルダの整理</div>
-      <div id="flist"></div>
-      <div class="frow" style="margin-top:10px">
-        <input class="inp" id="fnew" type="text" placeholder="新しいフォルダ名">
-        <button class="btn" id="fadd" style="padding:9px 16px;white-space:nowrap">追加</button>
-      </div>
-      <p class="note" style="margin-top:8px">フォルダを消しても、中のレシピは残って未分類に移ります。</p>
-    </div>
-
     <div class="searchbar">
       <input class="inp" id="q" type="search" placeholder="材料・タイトル・タグで探す">
     </div>
     <div class="count" id="count"></div>
-    <div class="cards" id="cards"></div>
+    <div id="folders"></div>
+    <div class="frow" id="fadd-row" style="margin-top:12px">
+      <input class="inp" id="fnew" type="text" placeholder="新しいフォルダ名">
+      <button class="btn" id="fadd" style="padding:10px 18px;white-space:nowrap">追加</button>
+    </div>
   </section>
 
   <!-- 編集 -->
@@ -413,6 +420,7 @@ details.raw pre{
     <h2 id="d-title"></h2>
     <div class="meta" id="d-meta" style="margin-bottom:18px"></div>
     <a class="open-video" id="d-open" target="_blank" rel="noopener">↗　URLを開く</a>
+    <button class="embed-btn hidden" id="d-embed-btn">Instagramの投稿をここに表示する</button>
     <div class="player hidden" id="d-player"></div>
 
     <div class="sec" id="d-ing-sec">
@@ -507,7 +515,7 @@ function toast(msg){
 
 const S = { user:null, recipes:[], view:'auth', draft:null, current:null, checked:new Set(), unsub:null,
             capImages:[], draftImages:[], removedImages:[], detailImages:[],
-            folders:[], folder:null, unsubF:null };
+            folders:[], folderTarget:'', unsubF:null };
 
 /* ============================================================
    画像
@@ -754,6 +762,12 @@ function youtubeId(url){
   const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:shorts\/|live\/|embed\/|v\/|watch\?(?:[^#]*&)?v=))([A-Za-z0-9_-]{11})/);
   return m ? m[1] : null;
 }
+function instaRef(url){
+  const m = String(url).match(/instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
+  if (!m) return null;
+  return { kind: m[1] === 'reels' ? 'reel' : m[1], id: m[2] };
+}
+
 function recipeScore(t){
   if (!t) return 0;
   let s = 0;
@@ -826,8 +840,10 @@ $('#cap').addEventListener('paste', e => {
   if (ev === 'drop' && e.dataTransfer.files.length) addCapFiles(e.dataTransfer.files);
 }));
 
+let pendingHint = '';
 $('#btn-cap').addEventListener('click', async () => {
   const val = $('#cap').value.trim();
+  pendingHint = '';
   $('#cap-err').innerHTML = '';
   if (!val && !S.capImages.length) return;
   const btn = $('#btn-cap');
@@ -844,8 +860,17 @@ $('#btn-cap').addEventListener('click', async () => {
         source:'youtube', url, videoId:vid, title:y.title, thumbnail:y.thumbnail,
         rawText: best.text, memo:'', tags:[], _sources:y.sources, _srcIndex:0
       }, parseRecipe(best.text));
-    } else if (url && val.replace(url, '').trim().length < 20){
-      throw new Error('YouTube以外のURLの自動取り込みはまだ用意していません。ページの材料と作り方をコピーして、テキストとして貼ってください。');
+    } else if (url && !val.replace(url, '').trim() && !S.capImages.length){
+      /* URLだけ。中身は取れないので、器だけ作ってあとは手で入れてもらう */
+      const ig = instaRef(url);
+      S.draft = Object.assign({
+        source: ig ? 'instagram' : 'web', url, videoId:'', thumbnail:'',
+        title: ig ? 'Instagramのレシピ' : '名前のないレシピ',
+        rawText:'', memo:'', tags:[], _sources:null, _srcIndex:0
+      }, { ingredients:[], steps:[], servings:'' });
+      pendingHint = ig
+        ? 'Instagramは中身を自動で読めません。キャプションを貼るか、スクショを足してください。'
+        : 'このページは自動で読めませんでした。材料と作り方をコピーして貼ってください。';
     } else if (!val && S.capImages.length){
       S.draft = Object.assign({
         source:'image', url:'', videoId:'', title:'', thumbnail:'',
@@ -854,19 +879,22 @@ $('#btn-cap').addEventListener('click', async () => {
     } else {
       const first = val.split('\n').map(l => l.trim()).find(l => l && !/https?:\/\//.test(l)) || '名前のないレシピ';
       S.draft = Object.assign({
-        source: url ? 'web' : 'text', url, videoId:'', title:first.slice(0, 60), thumbnail:'',
+        source: instaRef(url) ? 'instagram' : (url ? 'web' : 'text'),
+        url, videoId:'', title:first.slice(0, 60), thumbnail:'',
         rawText: val, memo:'', tags:[], _sources:null, _srcIndex:0
       }, parseRecipe(val));
     }
     S.current = null;
-    S.draft.folderId = S.folder || '';
+    S.draft.folderId = S.folderTarget || '';
     S.draftImages = S.capImages.slice();
     S.removedImages = [];
     S.capImages = [];
     renderCapThumbs();
+    if (S.draft.folderId) openMap[S.draft.folderId] = true;
     if (!S.draft.thumbnail && S.draftImages.length)
       S.draft.thumbnail = await shrink(S.draftImages[0].data, 320, 22 * 1024);
     openEditor();
+    if (pendingHint) toast(pendingHint);
   } catch (e){
     $('#cap-err').innerHTML = '<div class="alert">' + esc(e.message) + '</div>';
   } finally {
@@ -889,107 +917,175 @@ function show(v){
 $('#btn-home').addEventListener('click', () => { if (S.user){ S.current = null; show('list'); } });
 $('#btn-new').addEventListener('click', () => { $('#cap').focus(); window.scrollTo({ top:0, behavior:'smooth' }); });
 
-/* ---- フォルダ ---- */
+/* ---- フォルダ（アコーディオン） ---- */
 const folderCol = () => collection(db, 'users', S.user.uid, 'folders');
 const folderName = id => { const f = S.folders.find(x => x.id === id); return f ? f.name : ''; };
 const isLoose = r => !r.folderId || !S.folders.some(f => f.id === r.folderId);
 
-function renderChips(){
-  const count = fn => S.recipes.filter(fn).length;
-  let h = '<button class="chip' + (S.folder === null ? ' on' : '') + '" data-f="__all">'
-        + 'すべて<span class="n">' + S.recipes.length + '</span></button>';
-  h += S.folders.map(f =>
-        '<button class="chip' + (S.folder === f.id ? ' on' : '') + '" data-f="' + esc(f.id) + '">'
-        + esc(f.name) + '<span class="n">' + count(r => r.folderId === f.id) + '</span></button>').join('');
-  const loose = count(isLoose);
-  if (loose || S.folders.length)
-    h += '<button class="chip' + (S.folder === '' ? ' on' : '') + '" data-f="__none">'
-       + '未分類<span class="n">' + loose + '</span></button>';
-  h += '<button class="chip gear" data-f="__manage" title="フォルダの整理">⚙</button>';
-  $('#chips').innerHTML = h;
-}
-$('#chips').addEventListener('click', e => {
-  const b = e.target.closest('.chip'); if (!b) return;
-  const v = b.dataset.f;
-  if (v === '__manage'){ $('#fpanel').classList.toggle('hidden'); renderFolderPanel(); return; }
-  S.folder = v === '__all' ? null : (v === '__none' ? '' : v);
-  renderChips(); renderList();
-});
-
-function renderFolderPanel(){
-  if (drag) return;                       /* ドラッグ中は組み替えない */
-  $('#flist').innerHTML = S.folders.map(f =>
-    '<div class="frow" data-id="' + esc(f.id) + '">'
-    + '<span class="fhandle" title="ドラッグで並べ替え">☰</span>'
-    + '<input class="inp fname" data-id="' + esc(f.id) + '" value="' + esc(f.name) + '">'
-    + '<button class="x" data-fdel="' + esc(f.id) + '" title="このフォルダを消す">×</button></div>').join('')
-    || '<p class="note">まだフォルダがありません。</p>';
-}
-/* 並べ替え：ポインタイベントなので、マウスでも指でも同じコードで動く */
+const LOOSE = '__loose';
+let openMap = {};        /* フォルダid -> 開いているか。既定は閉じる */
+let renaming = null;     /* 名前を編集中のフォルダid */
 let drag = null;
-const flist = $('#flist');
 
-flist.addEventListener('pointerdown', e => {
-  const h = e.target.closest('.fhandle'); if (!h) return;
-  e.preventDefault();
-  const row = h.closest('.frow');
-  h.setPointerCapture(e.pointerId);
-  drag = { row, id: e.pointerId };
-  row.classList.add('dragging');
-});
+function setTarget(id){
+  S.folderTarget = id || '';
+  const n = $('#target-note');
+  if (S.folderTarget){
+    n.classList.remove('hidden');
+    n.innerHTML = '「' + esc(folderName(S.folderTarget)) + '」に取り込みます'
+                + '<button id="target-clear">やめる</button>';
+    $('#target-clear').addEventListener('click', () => setTarget(''));
+    $('#cap').focus();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  } else n.classList.add('hidden');
+}
 
-flist.addEventListener('pointermove', e => {
-  if (!drag || e.pointerId !== drag.id) return;
-  e.preventDefault();
-  for (const r of $$('.frow', flist)){
-    if (r === drag.row) continue;
-    const b = r.getBoundingClientRect();
-    const mid = b.top + b.height / 2;
-    const after = drag.row.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING;
-    if (after && e.clientY > mid){ r.parentNode.insertBefore(drag.row, r.nextSibling); break; }
-    if (!after && e.clientY < mid){ r.parentNode.insertBefore(drag.row, r); break; }
+function rowHtml(r){
+  const th = r.thumbnail
+    ? '<span class="th" style="background-image:url(' + esc(r.thumbnail) + ')"></span>'
+    : '<span class="th">' + (r.source === 'image' ? '写真' : 'メモ') + '</span>';
+  const badge = r.source === 'youtube'   ? '<span class="pill">YouTube</span>'
+              : r.source === 'instagram' ? '<span class="pill">Instagram</span>'
+              : r.source === 'image'     ? '<span class="pill g">スクショ</span>'
+              : '<span class="pill g">メモ</span>';
+  const n = (r.ingredients || []).length;
+  return '<button class="rrow" data-id="' + esc(r.id) + '">' + th +
+    '<span class="tx"><h3>' + esc(r.title || '名前のないレシピ') + '</h3>' +
+    '<span class="meta">' + badge +
+    (n ? '<span>材料 ' + n + '</span>' : '') +
+    (r.servings ? '<span>' + esc(r.servings) + '</span>' : '') +
+    ((r.tags || []).slice(0, 2).map(t => '<span>#' + esc(t) + '</span>').join('')) +
+    '</span></span></button>';
+}
+
+function folderHtml(id, name, items, opts){
+  opts = opts || {};
+  const open = !!openMap[id];
+  const head = renaming === id
+    ? '<input class="frename" id="frename-input" value="' + esc(name) + '">'
+      + '<div class="facts"><button data-ok="' + esc(id) + '" title="決定">✓</button>'
+      + '<button data-cancel="1" title="やめる">×</button></div>'
+    : '<span class="nm">' + esc(name) + '</span>'
+      + '<span class="ct">' + items.length + '</span>'
+      + (opts.loose ? '' :
+         '<div class="facts">'
+         + '<button data-add="' + esc(id) + '" title="このフォルダに取り込む">＋</button>'
+         + '<button data-ren="' + esc(id) + '" title="名前を変える">✎</button>'
+         + '<button class="del" data-del="' + esc(id) + '" title="フォルダを消す">🗑</button>'
+         + '</div>');
+
+  return '<div class="folder" data-fid="' + esc(id) + '">'
+    + '<div class="fh' + (opts.loose ? ' loose' : '') + '" data-toggle="' + esc(id) + '">'
+    + (opts.loose ? '' : '<span class="fdrag" title="ドラッグで並べ替え">☰</span>')
+    + '<span class="chev' + (open ? ' open' : '') + '">▶</span>' + head + '</div>'
+    + (open ? '<div class="fbody">'
+        + (items.length ? items.map(rowHtml).join('')
+                        : '<div class="fempty">まだレシピがありません。</div>')
+        + '</div>' : '')
+    + '</div>';
+}
+
+/* ---- 一覧 ---- */
+function renderList(){
+  if (drag) return;
+  const q = $('#q').value.trim().toLowerCase();
+  const hit = r => !q || [r.title, (r.tags || []).join(' '),
+      (r.ingredients || []).map(i => i.name).join(' '), r.memo, r.rawText]
+      .join(' ').toLowerCase().includes(q);
+
+  const groups = S.folders.map(f => ({ id:f.id, name:f.name, items:S.recipes.filter(r => r.folderId === f.id && hit(r)) }));
+  const loose  = S.recipes.filter(r => isLoose(r) && hit(r));
+  const total  = groups.reduce((n, g) => n + g.items.length, 0) + loose.length;
+
+  $('#count').textContent = S.recipes.length
+    ? (q ? total + ' / ' + S.recipes.length + ' 件' : S.recipes.length + ' 件') : '';
+
+  if (!S.recipes.length && !S.folders.length){
+    $('#folders').innerHTML = '<div class="empty"><strong>まだ何も控えていません</strong>'
+      + '上のらんに、気になった動画のURLを貼るところから。</div>';
+    return;
+  }
+  if (q && !total){
+    $('#folders').innerHTML = '<div class="empty"><strong>見つかりませんでした</strong>'
+      + '別のことばで探してみてください。</div>';
+    return;
+  }
+
+  /* 検索中は当たったフォルダを開いて見せる */
+  if (q) groups.forEach(g => { if (g.items.length) openMap[g.id] = true; });
+  if (q && loose.length) openMap[LOOSE] = true;
+
+  let h = groups.filter(g => !q || g.items.length)
+                .map(g => folderHtml(g.id, g.name, g.items)).join('');
+  if (loose.length || (!q && S.folders.length === 0))
+    h += folderHtml(LOOSE, '未分類', loose, { loose:true });
+  $('#folders').innerHTML = h;
+
+  if (renaming){
+    const inp = $('#frename-input');
+    if (inp){ inp.focus(); inp.select(); }
+  }
+}
+$('#q').addEventListener('input', renderList);
+
+/* ---- クリック処理 ---- */
+$('#folders').addEventListener('click', async e => {
+  const t = e.target;
+
+  const rrow = t.closest('.rrow');
+  if (rrow){
+    const r = S.recipes.find(x => x.id === rrow.dataset.id);
+    if (r) openDetail(r);
+    return;
+  }
+
+  if (t.dataset.add !== undefined && t.dataset.add){ setTarget(t.dataset.add); return; }
+
+  if (t.dataset.ren){ renaming = t.dataset.ren; renderList(); return; }
+  if (t.dataset.cancel){ renaming = null; renderList(); return; }
+  if (t.dataset.ok){
+    const inp = $('#frename-input');
+    const name = inp ? inp.value.trim() : '';
+    const id = t.dataset.ok;
+    renaming = null;
+    if (name && name !== folderName(id)){
+      try { await updateDoc(doc(folderCol(), id), { name }); }
+      catch (err){ toast('名前を変えられませんでした'); }
+    }
+    renderList();
+    return;
+  }
+
+  if (t.dataset.del){
+    const id = t.dataset.del;
+    const inside = S.recipes.filter(r => r.folderId === id);
+    if (!confirm('「' + folderName(id) + '」を消します。'
+        + (inside.length ? '中の' + inside.length + '件は未分類に移ります。' : ''))) return;
+    try {
+      for (const r of inside)
+        await updateDoc(doc(db, 'users', S.user.uid, 'recipes', r.id), { folderId: '' });
+      await deleteDoc(doc(folderCol(), id));
+      if (S.folderTarget === id) setTarget('');
+      toast('フォルダを消しました');
+    } catch (err){ toast('消せませんでした'); }
+    return;
+  }
+
+  const fh = t.closest('.fh');
+  if (fh && !t.closest('.facts') && !t.closest('.frename') && !t.closest('.fdrag')){
+    const id = fh.dataset.toggle;
+    openMap[id] = !openMap[id];
+    renderList();
   }
 });
 
-async function endDrag(e){
-  if (!drag || (e && e.pointerId !== drag.id)) return;
-  drag.row.classList.remove('dragging');
-  drag = null;
-  const ids = $$('.frow', flist).map(r => r.dataset.id);
-  const same = ids.every((id, i) => S.folders[i] && S.folders[i].id === id);
-  if (same) return;
-  /* 画面はもう並び替わっているので、先にローカルを合わせてから書き込む */
-  S.folders = ids.map(id => S.folders.find(f => f.id === id)).filter(Boolean);
-  renderChips();
-  try {
-    for (let i = 0; i < ids.length; i++)
-      await updateDoc(doc(folderCol(), ids[i]), { order: i });
-  } catch (err){ toast('並び順を保存できませんでした'); }
-}
-flist.addEventListener('pointerup', endDrag);
-flist.addEventListener('pointercancel', endDrag);
+$('#folders').addEventListener('keydown', e => {
+  if (!e.target.classList.contains('frename')) return;
+  if (e.key === 'Enter'){ const b = $('[data-ok]'); if (b) b.click(); }
+  if (e.key === 'Escape'){ renaming = null; renderList(); }
+});
 
-$('#flist').addEventListener('change', async e => {
-  if (!e.target.classList.contains('fname')) return;
-  const name = e.target.value.trim();
-  if (!name) return renderFolderPanel();
-  try { await updateDoc(doc(folderCol(), e.target.dataset.id), { name }); }
-  catch (err){ toast('名前を変えられませんでした'); }
-});
-$('#flist').addEventListener('click', async e => {
-  const id = e.target.dataset.fdel; if (!id) return;
-  const inside = S.recipes.filter(r => r.folderId === id);
-  const msg = '「' + folderName(id) + '」を消します。'
-            + (inside.length ? '中の' + inside.length + '件は未分類に移ります。' : '');
-  if (!confirm(msg)) return;
-  try {
-    for (const r of inside)
-      await updateDoc(doc(db, 'users', S.user.uid, 'recipes', r.id), { folderId: '' });
-    await deleteDoc(doc(folderCol(), id));
-    if (S.folder === id) S.folder = null;
-    toast('フォルダを消しました');
-  } catch (err){ toast('消せませんでした'); }
-});
+/* ---- フォルダ追加 ---- */
 async function addFolder(){
   const name = $('#fnew').value.trim();
   if (!name) return;
@@ -1003,55 +1099,42 @@ async function addFolder(){
 $('#fadd').addEventListener('click', addFolder);
 $('#fnew').addEventListener('keydown', e => { if (e.key === 'Enter') addFolder(); });
 
-/* ---- 一覧 ---- */
-function renderList(){
-  const q = $('#q').value.trim().toLowerCase();
-  const list = S.recipes.filter(r => {
-    if (S.folder === '' && !isLoose(r)) return false;
-    if (S.folder && r.folderId !== S.folder) return false;
-    if (!q) return true;
-    const hay = [r.title, (r.tags || []).join(' '), (r.ingredients || []).map(i => i.name).join(' '), r.memo, r.rawText]
-      .join(' ').toLowerCase();
-    return hay.includes(q);
-  });
-  const scope = S.folder === null ? S.recipes.length
-              : S.recipes.filter(r => S.folder === '' ? isLoose(r) : r.folderId === S.folder).length;
-  $('#count').textContent = S.recipes.length ? (q ? list.length + ' / ' + scope + ' 件' : scope + ' 件') : '';
-
-  if (!S.recipes.length){
-    $('#cards').innerHTML = '<div class="empty"><strong>まだ何も控えていません</strong>上のらんに、気になった動画のURLを貼るところから。</div>';
-    return;
-  }
-  if (!list.length){
-    $('#cards').innerHTML = q
-      ? '<div class="empty"><strong>見つかりませんでした</strong>別のことばで探してみてください。</div>'
-      : '<div class="empty"><strong>このフォルダは空です</strong>レシピの「修正」からフォルダを選ぶと入ります。</div>';
-    return;
-  }
-  $('#cards').innerHTML = list.map(r => {
-    const th = r.thumbnail
-      ? '<div class="thumb" style="background-image:url(' + esc(r.thumbnail) + ')"></div>'
-      : '<div class="thumb">テキスト</div>';
-    const badge = r.source === 'youtube' ? '<span class="pill">YouTube</span>'
-                : r.source === 'image'    ? '<span class="pill g">スクショ</span>'
-                : '<span class="pill g">メモ</span>';
-    const n = (r.ingredients || []).length;
-    return '<button class="card" data-id="' + esc(r.id) + '">' + th +
-      '<div class="body"><h3>' + esc(r.title || '名前のないレシピ') + '</h3>' +
-      '<div class="meta">' + badge +
-      (n ? '<span>材料 ' + n + '</span>' : '') +
-      (r.servings ? '<span>' + esc(r.servings) + '</span>' : '') +
-      (S.folder === null && !isLoose(r) ? '<span>' + esc(folderName(r.folderId)) + '</span>' : '') +
-      ((r.tags || []).slice(0, 2).map(t => '<span>#' + esc(t) + '</span>').join('')) +
-      '</div></div></button>';
-  }).join('');
-}
-$('#q').addEventListener('input', renderList);
-$('#cards').addEventListener('click', e => {
-  const c = e.target.closest('.card'); if (!c) return;
-  const r = S.recipes.find(x => x.id === c.dataset.id);
-  if (r) openDetail(r);
+/* ---- 並べ替え（マウスでも指でも同じ） ---- */
+const fwrap = $('#folders');
+fwrap.addEventListener('pointerdown', e => {
+  const h = e.target.closest('.fdrag'); if (!h) return;
+  e.preventDefault();
+  const card = h.closest('.folder');
+  h.setPointerCapture(e.pointerId);
+  drag = { card, id:e.pointerId };
+  card.classList.add('dragging');
 });
+fwrap.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  e.preventDefault();
+  for (const c of $$('.folder', fwrap)){
+    if (c === drag.card || c.dataset.fid === LOOSE) continue;
+    const b = c.getBoundingClientRect(), mid = b.top + b.height / 2;
+    const after = drag.card.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING;
+    if (after && e.clientY > mid){ c.parentNode.insertBefore(drag.card, c.nextSibling); break; }
+    if (!after && e.clientY < mid){ c.parentNode.insertBefore(drag.card, c); break; }
+  }
+});
+async function endDrag(e){
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  drag.card.classList.remove('dragging');
+  drag = null;
+  const ids = $$('.folder', fwrap).map(c => c.dataset.fid).filter(id => id !== LOOSE);
+  if (ids.every((id, i) => S.folders[i] && S.folders[i].id === id)) return;
+  S.folders = ids.map(id => S.folders.find(f => f.id === id)).filter(Boolean);
+  renderList();
+  try {
+    for (let i = 0; i < ids.length; i++)
+      await updateDoc(doc(folderCol(), ids[i]), { order: i });
+  } catch (err){ toast('並び順を保存できませんでした'); }
+}
+fwrap.addEventListener('pointerup', endDrag);
+fwrap.addEventListener('pointercancel', endDrag);
 
 /* ---- 編集 ---- */
 function ingRow(g = { name:'', amount:'', unit:'' }){
@@ -1265,6 +1348,7 @@ $('#btn-save').addEventListener('click', async () => {
       openDetail(S.current);
     } else {
       $('#cap').value = '';
+      setTarget('');
       show('list');
     }
     toast('控えました');
@@ -1300,8 +1384,9 @@ function openDetail(r){
   S.detailImages = [];
   $('#d-title').textContent = r.title || '名前のないレシピ';
   $('#d-meta').innerHTML =
-    (r.source === 'youtube' ? '<span class="pill">YouTube</span>'
-     : r.source === 'image'  ? '<span class="pill g">スクショ</span>'
+    (r.source === 'youtube'   ? '<span class="pill">YouTube</span>'
+     : r.source === 'instagram' ? '<span class="pill">Instagram</span>'
+     : r.source === 'image'     ? '<span class="pill g">スクショ</span>'
      : '<span class="pill g">メモ</span>') +
     (r.servings ? '<span>' + esc(r.servings) + '</span>' : '') +
     (!isLoose(r) ? '<span>' + esc(folderName(r.folderId)) + '</span>' : '');
@@ -1310,12 +1395,19 @@ function openDetail(r){
   if (r.url){ open.href = r.url; open.classList.remove('hidden'); }
   else open.classList.add('hidden');
 
-  const p = $('#d-player');
+  const p = $('#d-player'), eb = $('#d-embed-btn');
+  p.className = 'player hidden'; p.innerHTML = '';
+  eb.classList.add('hidden');
+  const ig = r.url ? instaRef(r.url) : null;
   if (r.videoId){
     p.classList.remove('hidden');
     p.innerHTML = '<iframe src="https://www.youtube.com/embed/' + esc(r.videoId) +
       '" title="動画" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>';
-  } else { p.classList.add('hidden'); p.innerHTML = ''; }
+  } else if (ig){
+    /* Instagramは重いので、押したときだけ読み込む */
+    eb.classList.remove('hidden');
+    eb.dataset.embed = 'https://www.instagram.com/' + ig.kind + '/' + ig.id + '/embed/';
+  }
 
   renderIngs();
 
@@ -1371,6 +1463,15 @@ function startEdit(scrollTo){
 }
 $('#btn-edit').addEventListener('click', () => startEdit());
 $('#btn-back2').addEventListener('click', () => { S.current = null; show('list'); });
+
+$('#d-embed-btn').addEventListener('click', e => {
+  const src = e.currentTarget.dataset.embed; if (!src) return;
+  const p = $('#d-player');
+  p.className = 'player ig';
+  p.innerHTML = '<iframe src="' + esc(src) + '" title="Instagramの投稿" '
+    + 'allowtransparency="true" frameborder="0" scrolling="no" loading="lazy"></iframe>';
+  e.currentTarget.classList.add('hidden');
+});
 $$('.edit-jump').forEach(b => b.addEventListener('click', () => startEdit(b.dataset.to)));
 
 $('#pour-raw').addEventListener('click', () => {
@@ -1437,12 +1538,11 @@ onAuthStateChanged(auth, u => {
     S.folders = snap.docs.map(d => Object.assign({ id:d.id }, d.data()))
       .sort((a, b) => (a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)
                    || String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
-    renderChips(); renderFolderPanel(); renderList();
+    renderList();
   }, err => console.warn(err));
   const qy = query(collection(db, 'users', u.uid, 'recipes'), orderBy('createdAt', 'desc'));
   S.unsub = onSnapshot(qy, snap => {
     S.recipes = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
-    renderChips();
     renderList();
     if (S.current){
       const fresh = S.recipes.find(r => r.id === S.current.id);
