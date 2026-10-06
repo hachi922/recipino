@@ -138,6 +138,43 @@ textarea.inp{resize:vertical;min-height:92px}
 .rrow .tx{flex:1;min-width:0}
 .rrow h3{font-family:'Shippori Mincho',serif;font-size:14.5px;font-weight:600;line-height:1.45;margin-bottom:3px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.listhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.minibtn{
+  font-size:12.5px;font-weight:700;color:var(--green-dark);border:1px solid var(--line);
+  background:var(--card);padding:5px 12px;border-radius:999px;white-space:nowrap;
+}
+.minibtn:hover{background:var(--green-pale);border-color:var(--green)}
+.minibtn.on{background:var(--ink);border-color:var(--ink);color:#F3F6F1}
+.sub{border-top:1px solid var(--line)}
+.sub:first-child{border-top:none}
+.subh{
+  display:flex;align-items:center;gap:7px;width:100%;text-align:left;
+  padding:8px 12px 8px 26px;background:#F6F9F4;font-size:12.5px;font-weight:700;color:var(--ink-soft);
+}
+.subh:hover{background:#EEF4EA;color:var(--ink)}
+.subh .chev{font-size:9px;transition:transform .18s ease;flex:0 0 9px}
+.subh .chev.open{transform:rotate(90deg)}
+.subh .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.subh .ct{font-family:'DM Mono',monospace;font-size:11px;opacity:.7}
+.catpanel{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:15px;margin-bottom:16px;box-shadow:var(--shadow);
+}
+.catpanel hr{border:none;border-top:1px solid var(--line);margin:20px 0 16px}
+.catrow{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  padding:7px;border-radius:9px;background:var(--card);margin-bottom:4px;
+}
+.catrow.dragging{opacity:.75;background:var(--green-pale);box-shadow:var(--shadow)}
+.catrow .cname{flex:1 1 110px;min-width:90px;padding:7px 10px;font-weight:700}
+.catrow .ckw{flex:1 0 100%;padding:6px 10px;font-size:12px;color:var(--ink-soft)}
+.star{
+  flex:0 0 auto;width:27px;height:27px;border-radius:7px;font-size:13px;
+  color:var(--ink-faint);display:grid;place-items:center;
+}
+.star:hover{background:var(--citrus-pale);color:var(--citrus)}
+.star.on{color:var(--citrus)}
+.auto-note{font-size:11.5px;color:var(--ink-faint);margin-top:5px}
 .target-note{
   background:var(--citrus-pale);border-radius:9px;padding:8px 12px;font-size:12.5px;
   display:flex;align-items:center;gap:10px;margin-bottom:12px;
@@ -329,12 +366,12 @@ details.raw pre{
     <div class="searchbar">
       <input class="inp" id="q" type="search" placeholder="材料・タイトル・タグで探す">
     </div>
-    <div class="count" id="count"></div>
-    <div id="folders"></div>
-    <div class="frow" id="fadd-row" style="margin-top:12px">
-      <input class="inp" id="fnew" type="text" placeholder="新しいフォルダ名">
-      <button class="btn" id="fadd" style="padding:10px 18px;white-space:nowrap">追加</button>
+    <div class="listhead">
+      <span class="count" id="count"></span>
+      <button class="minibtn" id="btn-cats">分類の設定</button>
     </div>
+    <div class="catpanel hidden" id="catpanel"></div>
+    <div id="tree"></div>
   </section>
 
   <!-- 編集 -->
@@ -385,10 +422,17 @@ details.raw pre{
       <p class="note" style="margin-top:6px">材料か作り方かを選んでおくと、詳細画面のそれぞれの場所に並びます。</p>
     </div>
 
-    <div class="field">
-      <label for="f-folder">フォルダ</label>
-      <select class="inp" id="f-folder"></select>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1 1 150px">
+        <label for="f-purpose">用途</label>
+        <select class="inp" id="f-purpose"></select>
+      </div>
+      <div class="field" style="flex:1 1 150px">
+        <label for="f-ing">食材</label>
+        <select class="inp" id="f-ing"></select>
+      </div>
     </div>
+    <p class="auto-note" id="auto-note"></p>
 
     <div class="field">
       <label for="f-tags">タグ</label>
@@ -515,7 +559,7 @@ function toast(msg){
 
 const S = { user:null, recipes:[], view:'auth', draft:null, current:null, checked:new Set(), unsub:null,
             capImages:[], draftImages:[], removedImages:[], detailImages:[],
-            folders:[], folderTarget:'', unsubF:null };
+            cats:[], purposeTarget:'', unsubF:null };
 
 /* ============================================================
    画像
@@ -885,12 +929,12 @@ $('#btn-cap').addEventListener('click', async () => {
       }, parseRecipe(val));
     }
     S.current = null;
-    S.draft.folderId = S.folderTarget || '';
+    S.draft.purposeId = S.purposeTarget || '';
     S.draftImages = S.capImages.slice();
     S.removedImages = [];
     S.capImages = [];
     renderCapThumbs();
-    if (S.draft.folderId) openMap[S.draft.folderId] = true;
+    if (S.draft.purposeId) openMap['p:' + S.draft.purposeId] = true;
     if (!S.draft.thumbnail && S.draftImages.length)
       S.draft.thumbnail = await shrink(S.draftImages[0].data, 320, 22 * 1024);
     openEditor();
@@ -917,22 +961,82 @@ function show(v){
 $('#btn-home').addEventListener('click', () => { if (S.user){ S.current = null; show('list'); } });
 $('#btn-new').addEventListener('click', () => { $('#cap').focus(); window.scrollTo({ top:0, behavior:'smooth' }); });
 
-/* ---- フォルダ（アコーディオン） ---- */
-const folderCol = () => collection(db, 'users', S.user.uid, 'folders');
-const folderName = id => { const f = S.folders.find(x => x.id === id); return f ? f.name : ''; };
-const isLoose = r => !r.folderId || !S.folders.some(f => f.id === r.folderId);
+/* ---- 分類（用途 ＞ 食材） ---- */
+const catCol  = () => collection(db, 'users', S.user.uid, 'cats');
+const byKind  = k  => S.cats.filter(c => c.kind === k);
+const catById = id => S.cats.find(c => c.id === id);
+const catName = id => { const c = catById(id); return c ? c.name : ''; };
 
-const LOOSE = '__loose';
-let openMap = {};        /* フォルダid -> 開いているか。既定は閉じる */
-let renaming = null;     /* 名前を編集中のフォルダid */
+const NONE = '-';          /* 明示的に分類しない／どれにも当たらない */
+let openMap = {};          /* 開いている見出し */
 let drag = null;
+let seeded = false;
 
+/* 初回だけ入れる分類。キーワードは画面から足せる。 */
+const DEFAULT_CATS = [
+  { kind:'purpose', name:'ふつうに作る', isDefault:true, keywords:[] },
+  { kind:'purpose', name:'冷凍ストック', keywords:['冷凍','作り置き','作りおき','つくりおき','ストック','保存'] },
+  { kind:'purpose', name:'ダイエット',   keywords:['ダイエット','ヘルシー','低糖質','糖質オフ','低カロリー','カロリーオフ','高たんぱく','高タンパク'] },
+  { kind:'ing', name:'麺',         keywords:['パスタ','スパゲ','うどん','そば','蕎麦','ラーメン','中華麺','そうめん','素麺','マカロニ','春雨'] },
+  { kind:'ing', name:'ごはん',     keywords:['ご飯','ごはん','白米','お米','ライス','丼','リゾット'] },
+  { kind:'ing', name:'鶏肉',       keywords:['鶏','とり肉','鳥肉','手羽','ささみ','ササミ','チキン','むね肉','もも肉'] },
+  { kind:'ing', name:'豚肉',       keywords:['豚','ポーク','ベーコン','ハム','ソーセージ','ウインナー','ウィンナー'] },
+  { kind:'ing', name:'牛肉',       keywords:['牛肉','牛こま','牛切り','ビーフ','ステーキ'] },
+  { kind:'ing', name:'ひき肉',     keywords:['ひき肉','挽き肉','挽肉','ミンチ','合いびき','合挽'] },
+  { kind:'ing', name:'魚介',       keywords:['鮭','サーモン','鯖','さば','ぶり','ブリ','鱈','たら','まぐろ','ツナ','えび','海老','いか','イカ','たこ','タコ','あさり','ホタテ','帆立','しらす','かつお','あじ','さんま','いわし','明太','たらこ','ちくわ','はんぺん','魚'] },
+  { kind:'ing', name:'卵',         keywords:['卵','たまご','玉子'] },
+  { kind:'ing', name:'豆腐・大豆', keywords:['豆腐','厚揚げ','油揚げ','納豆','大豆','おから','豆乳'] },
+  { kind:'ing', name:'野菜',       keywords:['キャベツ','玉ねぎ','たまねぎ','玉葱','なす','ナス','茄子','トマト','じゃがいも','大根','白菜','ピーマン','パプリカ','きのこ','しめじ','えのき','まいたけ','しいたけ','椎茸','ほうれん草','小松菜','ブロッコリー','にんじん','人参','かぼちゃ','もやし','きゅうり','レタス','アボカド','オクラ','ねぎ','にら','ニラ','ごぼう','れんこん','ズッキーニ','長芋','里芋','さつまいも'] }
+];
+
+async function seedCats(){
+  if (seeded) return;
+  seeded = true;
+  try {
+    let n = { purpose:0, ing:0 };
+    for (const c of DEFAULT_CATS)
+      await addDoc(catCol(), {
+        kind:c.kind, name:c.name, keywords:c.keywords,
+        order:n[c.kind]++, isDefault:!!c.isDefault, createdAt:serverTimestamp()
+      });
+  } catch (e){ console.warn(e); }
+}
+
+/* ---- 自動判定：上から順に当てて、最初に当たったものを採る ---- */
+function matchCat(kind, text){
+  for (const c of byKind(kind))
+    for (const k of (c.keywords || []))
+      if (k && text.indexOf(k) >= 0) return c.id;
+  return '';
+}
+const purposeText = r => [r.title, (r.tags || []).join(' '), r.memo,
+                          (r.steps || []).join(' '), r.rawText].join(' ');
+const ingTextOf   = r => (r.ingredients || []).map(g => g.name).join(' ') + ' ' + (r.title || '');
+
+const autoPurpose = r => matchCat('purpose', purposeText(r));
+const autoIng     = r => matchCat('ing', ingTextOf(r));
+
+function purposeOf(r){
+  if (r.purposeId === NONE) return NONE;
+  if (r.purposeId && catById(r.purposeId)) return r.purposeId;
+  const a = autoPurpose(r);
+  if (a) return a;
+  const d = byKind('purpose').find(c => c.isDefault);
+  return d ? d.id : NONE;
+}
+function ingOf(r){
+  if (r.ingId === NONE) return NONE;
+  if (r.ingId && catById(r.ingId)) return r.ingId;
+  return autoIng(r) || NONE;
+}
+
+/* ---- 取り込み先 ---- */
 function setTarget(id){
-  S.folderTarget = id || '';
+  S.purposeTarget = id && id !== NONE ? id : '';
   const n = $('#target-note');
-  if (S.folderTarget){
+  if (S.purposeTarget){
     n.classList.remove('hidden');
-    n.innerHTML = '「' + esc(folderName(S.folderTarget)) + '」に取り込みます'
+    n.innerHTML = '「' + esc(catName(S.purposeTarget)) + '」に取り込みます'
                 + '<button id="target-clear">やめる</button>';
     $('#target-clear').addEventListener('click', () => setTarget(''));
     $('#cap').focus();
@@ -940,6 +1044,7 @@ function setTarget(id){
   } else n.classList.add('hidden');
 }
 
+/* ---- 一覧 ---- */
 function rowHtml(r){
   const th = r.thumbnail
     ? '<span class="th" style="background-image:url(' + esc(r.thumbnail) + ')"></span>'
@@ -958,183 +1063,230 @@ function rowHtml(r){
     '</span></span></button>';
 }
 
-function folderHtml(id, name, items, opts){
-  opts = opts || {};
-  const open = !!openMap[id];
-  const head = renaming === id
-    ? '<input class="frename" id="frename-input" value="' + esc(name) + '">'
-      + '<div class="facts"><button data-ok="' + esc(id) + '" title="決定">✓</button>'
-      + '<button data-cancel="1" title="やめる">×</button></div>'
-    : '<span class="nm">' + esc(name) + '</span>'
-      + '<span class="ct">' + items.length + '</span>'
-      + (opts.loose ? '' :
-         '<div class="facts">'
-         + '<button data-add="' + esc(id) + '" title="このフォルダに取り込む">＋</button>'
-         + '<button data-ren="' + esc(id) + '" title="名前を変える">✎</button>'
-         + '<button class="del" data-del="' + esc(id) + '" title="フォルダを消す">🗑</button>'
-         + '</div>');
+function subGroups(items){
+  const subs = byKind('ing').map(c => ({ id:c.id, name:c.name, items:[] }));
+  subs.push({ id:NONE, name:'その他', items:[] });
+  const m = {}; subs.forEach(x => m[x.id] = x);
+  items.forEach(r => (m[ingOf(r)] || m[NONE]).items.push(r));
+  return subs.filter(x => x.items.length);
+}
 
-  return '<div class="folder" data-fid="' + esc(id) + '">'
-    + '<div class="fh' + (opts.loose ? ' loose' : '') + '" data-toggle="' + esc(id) + '">'
-    + (opts.loose ? '' : '<span class="fdrag" title="ドラッグで並べ替え">☰</span>')
-    + '<span class="chev' + (open ? ' open' : '') + '">▶</span>' + head + '</div>'
-    + (open ? '<div class="fbody">'
-        + (items.length ? items.map(rowHtml).join('')
-                        : '<div class="fempty">まだレシピがありません。</div>')
-        + '</div>' : '')
+function groupHtml(g, forceOpen){
+  const key = 'p:' + g.id;
+  const open = forceOpen || !!openMap[key];
+  const loose = g.id === NONE;
+  let body = '';
+  if (open){
+    const subs = subGroups(g.items);
+    body = subs.length ? subs.map(sub => {
+      const skey = 'i:' + g.id + ':' + sub.id;
+      const sopen = forceOpen || !!openMap[skey];
+      return '<div class="sub"><button class="subh" data-sub="' + esc(skey) + '">'
+        + '<span class="chev' + (sopen ? ' open' : '') + '">▶</span>'
+        + '<span class="nm">' + esc(sub.name) + '</span>'
+        + '<span class="ct">' + sub.items.length + '</span></button>'
+        + (sopen ? sub.items.map(rowHtml).join('') : '') + '</div>';
+    }).join('') : '<div class="fempty">まだレシピがありません。</div>';
+  }
+  return '<div class="folder">'
+    + '<div class="fh' + (loose ? ' loose' : '') + '" data-toggle="' + esc(key) + '">'
+    + '<span class="chev' + (open ? ' open' : '') + '">▶</span>'
+    + '<span class="nm">' + esc(g.name) + '</span>'
+    + '<span class="ct">' + g.items.length + '</span>'
+    + (loose ? '' : '<div class="facts"><button data-add="' + esc(g.id)
+        + '" title="ここに取り込む">＋</button></div>')
+    + '</div>'
+    + (open ? '<div class="fbody">' + body + '</div>' : '')
     + '</div>';
 }
 
-/* ---- 一覧 ---- */
 function renderList(){
-  if (drag) return;
   const q = $('#q').value.trim().toLowerCase();
   const hit = r => !q || [r.title, (r.tags || []).join(' '),
       (r.ingredients || []).map(i => i.name).join(' '), r.memo, r.rawText]
       .join(' ').toLowerCase().includes(q);
+  const list = S.recipes.filter(hit);
 
-  const groups = S.folders.map(f => ({ id:f.id, name:f.name, items:S.recipes.filter(r => r.folderId === f.id && hit(r)) }));
-  const loose  = S.recipes.filter(r => isLoose(r) && hit(r));
-  const total  = groups.reduce((n, g) => n + g.items.length, 0) + loose.length;
+  const groups = byKind('purpose').map(c => ({ id:c.id, name:c.name, items:[] }));
+  groups.push({ id:NONE, name:'未分類', items:[] });
+  const m = {}; groups.forEach(g => m[g.id] = g);
+  list.forEach(r => (m[purposeOf(r)] || m[NONE]).items.push(r));
 
   $('#count').textContent = S.recipes.length
-    ? (q ? total + ' / ' + S.recipes.length + ' 件' : S.recipes.length + ' 件') : '';
+    ? (q ? list.length + ' / ' + S.recipes.length + ' 件' : S.recipes.length + ' 件') : '';
 
-  if (!S.recipes.length && !S.folders.length){
-    $('#folders').innerHTML = '<div class="empty"><strong>まだ何も控えていません</strong>'
+  if (!S.recipes.length){
+    $('#tree').innerHTML = '<div class="empty"><strong>まだ何も控えていません</strong>'
       + '上のらんに、気になった動画のURLを貼るところから。</div>';
     return;
   }
-  if (q && !total){
-    $('#folders').innerHTML = '<div class="empty"><strong>見つかりませんでした</strong>'
+  if (q && !list.length){
+    $('#tree').innerHTML = '<div class="empty"><strong>見つかりませんでした</strong>'
       + '別のことばで探してみてください。</div>';
     return;
   }
-
-  /* 検索中は当たったフォルダを開いて見せる */
-  if (q) groups.forEach(g => { if (g.items.length) openMap[g.id] = true; });
-  if (q && loose.length) openMap[LOOSE] = true;
-
-  let h = groups.filter(g => !q || g.items.length)
-                .map(g => folderHtml(g.id, g.name, g.items)).join('');
-  if (loose.length || (!q && S.folders.length === 0))
-    h += folderHtml(LOOSE, '未分類', loose, { loose:true });
-  $('#folders').innerHTML = h;
-
-  if (renaming){
-    const inp = $('#frename-input');
-    if (inp){ inp.focus(); inp.select(); }
-  }
+  $('#tree').innerHTML = groups
+    .filter(g => g.items.length || (!q && g.id !== NONE))
+    .map(g => groupHtml(g, !!q)).join('');
 }
 $('#q').addEventListener('input', renderList);
 
-/* ---- クリック処理 ---- */
-$('#folders').addEventListener('click', async e => {
+$('#tree').addEventListener('click', e => {
   const t = e.target;
-
   const rrow = t.closest('.rrow');
   if (rrow){
     const r = S.recipes.find(x => x.id === rrow.dataset.id);
     if (r) openDetail(r);
     return;
   }
-
-  if (t.dataset.add !== undefined && t.dataset.add){ setTarget(t.dataset.add); return; }
-
-  if (t.dataset.ren){ renaming = t.dataset.ren; renderList(); return; }
-  if (t.dataset.cancel){ renaming = null; renderList(); return; }
-  if (t.dataset.ok){
-    const inp = $('#frename-input');
-    const name = inp ? inp.value.trim() : '';
-    const id = t.dataset.ok;
-    renaming = null;
-    if (name && name !== folderName(id)){
-      try { await updateDoc(doc(folderCol(), id), { name }); }
-      catch (err){ toast('名前を変えられませんでした'); }
-    }
-    renderList();
-    return;
-  }
-
-  if (t.dataset.del){
-    const id = t.dataset.del;
-    const inside = S.recipes.filter(r => r.folderId === id);
-    if (!confirm('「' + folderName(id) + '」を消します。'
-        + (inside.length ? '中の' + inside.length + '件は未分類に移ります。' : ''))) return;
-    try {
-      for (const r of inside)
-        await updateDoc(doc(db, 'users', S.user.uid, 'recipes', r.id), { folderId: '' });
-      await deleteDoc(doc(folderCol(), id));
-      if (S.folderTarget === id) setTarget('');
-      toast('フォルダを消しました');
-    } catch (err){ toast('消せませんでした'); }
-    return;
-  }
-
+  if (t.dataset.add){ setTarget(t.dataset.add); return; }
+  const sub = t.closest('.subh');
+  if (sub){ openMap[sub.dataset.sub] = !openMap[sub.dataset.sub]; renderList(); return; }
   const fh = t.closest('.fh');
-  if (fh && !t.closest('.facts') && !t.closest('.frename') && !t.closest('.fdrag')){
-    const id = fh.dataset.toggle;
-    openMap[id] = !openMap[id];
+  if (fh && !t.closest('.facts')){
+    openMap[fh.dataset.toggle] = !openMap[fh.dataset.toggle];
     renderList();
   }
 });
 
-$('#folders').addEventListener('keydown', e => {
-  if (!e.target.classList.contains('frename')) return;
-  if (e.key === 'Enter'){ const b = $('[data-ok]'); if (b) b.click(); }
-  if (e.key === 'Escape'){ renaming = null; renderList(); }
+/* ---- 分類の設定 ---- */
+$('#btn-cats').addEventListener('click', () => {
+  const panel = $('#catpanel');
+  panel.classList.toggle('hidden');
+  $('#btn-cats').classList.toggle('on', !panel.classList.contains('hidden'));
+  if (!panel.classList.contains('hidden')) renderCats();
 });
 
-/* ---- フォルダ追加 ---- */
-async function addFolder(){
-  const name = $('#fnew').value.trim();
-  if (!name) return;
-  if (S.folders.some(f => f.name === name)){ toast('同じ名前のフォルダがあります'); return; }
-  try {
-    const tail = S.folders.reduce((m, f) => Math.max(m, f.order == null ? -1 : f.order), -1);
-    await addDoc(folderCol(), { name, order: tail + 1, createdAt: serverTimestamp() });
-    $('#fnew').value = '';
-  } catch (e){ toast('作れませんでした'); }
+function catRowHtml(c, kind){
+  return '<div class="catrow" data-id="' + esc(c.id) + '">'
+    + '<span class="fdrag" title="ドラッグで並べ替え">☰</span>'
+    + (kind === 'purpose'
+        ? '<button class="star' + (c.isDefault ? ' on' : '') + '" data-star="' + esc(c.id)
+          + '" title="どれにも当たらないときの行き先">★</button>' : '')
+    + '<input class="inp cname" data-id="' + esc(c.id) + '" value="' + esc(c.name) + '">'
+    + '<button class="x" data-delcat="' + esc(c.id) + '" title="この分類を消す">×</button>'
+    + '<input class="inp ckw" data-id="' + esc(c.id) + '" value="'
+    + esc((c.keywords || []).join('、')) + '" placeholder="キーワード（、で区切る）">'
+    + '</div>';
 }
-$('#fadd').addEventListener('click', addFolder);
-$('#fnew').addEventListener('keydown', e => { if (e.key === 'Enter') addFolder(); });
+function renderCats(){
+  if (drag) return;
+  const sec = (kind, title, hint, ph) =>
+    '<div class="eyebrow">' + title + '</div>'
+    + '<div class="catlist" data-kind="' + kind + '">'
+    + byKind(kind).map(c => catRowHtml(c, kind)).join('') + '</div>'
+    + '<div class="frow" style="margin-top:8px">'
+    + '<input class="inp" id="new-' + kind + '" placeholder="' + ph + '">'
+    + '<button class="btn" data-addcat="' + kind + '" style="padding:9px 16px;white-space:nowrap">追加</button></div>'
+    + '<p class="note" style="margin-top:7px">' + hint + '</p>';
+  $('#catpanel').innerHTML =
+      sec('purpose', 'ようと（おおきい分類）',
+          '上から順にキーワードを当てて、最初に当たったものに入ります。★はどれにも当たらなかったときの行き先です。',
+          '新しい用途')
+    + '<hr>'
+    + sec('ing', 'しょくざい（中の分け方）',
+          '材料名とタイトルから判定します。肉や魚を上に置くと、付け合わせの野菜に取られません。',
+          '新しい食材のくくり');
+}
+
+$('#catpanel').addEventListener('click', async e => {
+  const t = e.target;
+
+  if (t.dataset.addcat){
+    const kind = t.dataset.addcat;
+    const inp = $('#new-' + kind);
+    const name = inp.value.trim();
+    if (!name) return;
+    if (byKind(kind).some(c => c.name === name)){ toast('同じ名前があります'); return; }
+    try {
+      const tail = byKind(kind).reduce((mx, c) => Math.max(mx, c.order == null ? -1 : c.order), -1);
+      await addDoc(catCol(), { kind, name, keywords:[], order:tail + 1, isDefault:false, createdAt:serverTimestamp() });
+      inp.value = '';
+    } catch (err){ toast('作れませんでした'); }
+    return;
+  }
+
+  if (t.dataset.star){
+    const id = t.dataset.star;
+    try {
+      for (const c of byKind('purpose'))
+        if (!!c.isDefault !== (c.id === id)) await updateDoc(doc(catCol(), c.id), { isDefault: c.id === id });
+    } catch (err){ toast('変えられませんでした'); }
+    return;
+  }
+
+  if (t.dataset.delcat){
+    const id = t.dataset.delcat;
+    const c = catById(id); if (!c) return;
+    const n = S.recipes.filter(r => (c.kind === 'purpose' ? purposeOf(r) : ingOf(r)) === id).length;
+    if (!confirm('「' + c.name + '」を消します。'
+        + (n ? '入っていた' + n + '件は、ほかの分類か未分類に移ります。' : ''))) return;
+    try {
+      /* 手で指定していたレシピだけ、指定を外して自動に戻す */
+      const key = c.kind === 'purpose' ? 'purposeId' : 'ingId';
+      for (const r of S.recipes.filter(r => r[key] === id))
+        await updateDoc(doc(db, 'users', S.user.uid, 'recipes', r.id), { [key]: '' });
+      await deleteDoc(doc(catCol(), id));
+      if (S.purposeTarget === id) setTarget('');
+      toast('消しました');
+    } catch (err){ toast('消せませんでした'); }
+  }
+});
+
+$('#catpanel').addEventListener('change', async e => {
+  const t = e.target, id = t.dataset.id;
+  if (!id) return;
+  try {
+    if (t.classList.contains('cname')){
+      const name = t.value.trim();
+      if (!name) return renderCats();
+      await updateDoc(doc(catCol(), id), { name });
+    } else if (t.classList.contains('ckw')){
+      const keywords = t.value.split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean);
+      await updateDoc(doc(catCol(), id), { keywords });
+    }
+  } catch (err){ toast('保存できませんでした'); }
+});
 
 /* ---- 並べ替え（マウスでも指でも同じ） ---- */
-const fwrap = $('#folders');
-fwrap.addEventListener('pointerdown', e => {
+const cpanel = $('#catpanel');
+cpanel.addEventListener('pointerdown', e => {
   const h = e.target.closest('.fdrag'); if (!h) return;
   e.preventDefault();
-  const card = h.closest('.folder');
+  const row = h.closest('.catrow');
   h.setPointerCapture(e.pointerId);
-  drag = { card, id:e.pointerId };
-  card.classList.add('dragging');
+  drag = { row, id:e.pointerId, list:row.closest('.catlist') };
+  row.classList.add('dragging');
 });
-fwrap.addEventListener('pointermove', e => {
+cpanel.addEventListener('pointermove', e => {
   if (!drag || e.pointerId !== drag.id) return;
   e.preventDefault();
-  for (const c of $$('.folder', fwrap)){
-    if (c === drag.card || c.dataset.fid === LOOSE) continue;
-    const b = c.getBoundingClientRect(), mid = b.top + b.height / 2;
-    const after = drag.card.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING;
-    if (after && e.clientY > mid){ c.parentNode.insertBefore(drag.card, c.nextSibling); break; }
-    if (!after && e.clientY < mid){ c.parentNode.insertBefore(drag.card, c); break; }
+  for (const r of $$('.catrow', drag.list)){
+    if (r === drag.row) continue;
+    const b = r.getBoundingClientRect(), mid = b.top + b.height / 2;
+    const after = drag.row.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING;
+    if (after && e.clientY > mid){ r.parentNode.insertBefore(drag.row, r.nextSibling); break; }
+    if (!after && e.clientY < mid){ r.parentNode.insertBefore(drag.row, r); break; }
   }
 });
 async function endDrag(e){
   if (!drag || (e && e.pointerId !== drag.id)) return;
-  drag.card.classList.remove('dragging');
+  const list = drag.list;
+  drag.row.classList.remove('dragging');
   drag = null;
-  const ids = $$('.folder', fwrap).map(c => c.dataset.fid).filter(id => id !== LOOSE);
-  if (ids.every((id, i) => S.folders[i] && S.folders[i].id === id)) return;
-  S.folders = ids.map(id => S.folders.find(f => f.id === id)).filter(Boolean);
+  const ids = $$('.catrow', list).map(r => r.dataset.id);
+  const kind = list.dataset.kind;
+  if (ids.every((id, i) => (byKind(kind)[i] || {}).id === id)) return;
+  /* 画面の並びを先に信じて、あとから書き込む */
+  ids.forEach((id, i) => { const c = catById(id); if (c) c.order = i; });
+  S.cats.sort((a, b) => (a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order));
   renderList();
   try {
-    for (let i = 0; i < ids.length; i++)
-      await updateDoc(doc(folderCol(), ids[i]), { order: i });
+    for (let i = 0; i < ids.length; i++) await updateDoc(doc(catCol(), ids[i]), { order:i });
   } catch (err){ toast('並び順を保存できませんでした'); }
 }
-fwrap.addEventListener('pointerup', endDrag);
-fwrap.addEventListener('pointercancel', endDrag);
+cpanel.addEventListener('pointerup', endDrag);
+cpanel.addEventListener('pointercancel', endDrag);
 
 /* ---- 編集 ---- */
 function ingRow(g = { name:'', amount:'', unit:'' }){
@@ -1215,12 +1367,23 @@ $('#ings').addEventListener('paste', e => {
   toast(lines.length + '品に分けました');
 });
 
+function fillCatSelect(sel, kind, chosen, autoId){
+  const auto = autoId ? catName(autoId) : 'どれにも当たらず';
+  $(sel).innerHTML =
+      '<option value="">自動（' + esc(auto) + '）</option>'
+    + '<option value="' + NONE + '"' + (chosen === NONE ? ' selected' : '') + '>分類しない</option>'
+    + byKind(kind).map(c => '<option value="' + esc(c.id) + '"'
+        + (chosen === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('');
+}
+
 function fillEditor(d){
   $('#f-title').value = d.title || '';
   $('#f-url').value   = d.url || '';
   $('#f-serv').value  = d.servings || '';
-  $('#f-folder').innerHTML = '<option value="">未分類</option>' + S.folders.map(f =>
-    '<option value="' + esc(f.id) + '"' + (d.folderId === f.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('');
+  fillCatSelect('#f-purpose', 'purpose', d.purposeId, autoPurpose(d));
+  fillCatSelect('#f-ing', 'ing', d.ingId, autoIng(d));
+  $('#auto-note').textContent =
+    '「自動」のままにしておくと、材料や文面から判定します。あとから変わることもあります。';
   $('#f-tags').value  = (d.tags || []).join(', ');
   $('#f-memo').value  = d.memo || '';
   $('#raw').textContent = d.rawText || '（なし）';
@@ -1307,7 +1470,8 @@ function collect(){
     title: $('#f-title').value.trim() || '名前のないレシピ', thumbnail: S.draft.thumbnail || '',
     servings: $('#f-serv').value.trim(), ingredients, steps, tags,
     memo: $('#f-memo').value.trim(), rawText: S.draft.rawText || '',
-    folderId: $('#f-folder').value, imageCount: S.draftImages.length
+    purposeId: $('#f-purpose').value, ingId: $('#f-ing').value,
+    imageCount: S.draftImages.length
   };
 }
 async function saveImages(recipeId){
@@ -1389,7 +1553,8 @@ function openDetail(r){
      : r.source === 'image'     ? '<span class="pill g">スクショ</span>'
      : '<span class="pill g">メモ</span>') +
     (r.servings ? '<span>' + esc(r.servings) + '</span>' : '') +
-    (!isLoose(r) ? '<span>' + esc(folderName(r.folderId)) + '</span>' : '');
+    [purposeOf(r), ingOf(r)].filter(id => id !== NONE)
+      .map(id => '<span>' + esc(catName(id)) + '</span>').join('');
 
   const open = $('#d-open');
   if (r.url){ open.href = r.url; open.classList.remove('hidden'); }
@@ -1530,15 +1695,17 @@ onAuthStateChanged(auth, u => {
   S.user = u;
   if (S.unsub){ S.unsub(); S.unsub = null; }
   if (S.unsubF){ S.unsubF(); S.unsubF = null; }
-  if (!u){ S.recipes = []; S.folders = []; show('auth'); return; }
+  if (!u){ S.recipes = []; S.cats = []; seeded = false; show('auth'); return; }
 
   /* orderBy は order を持たない古いドキュメントを取りこぼすので、
      取得は無条件、並べ替えは手元でやる。 */
-  S.unsubF = onSnapshot(folderCol(), snap => {
-    S.folders = snap.docs.map(d => Object.assign({ id:d.id }, d.data()))
+  S.unsubF = onSnapshot(catCol(), snap => {
+    S.cats = snap.docs.map(d => Object.assign({ id:d.id }, d.data()))
       .sort((a, b) => (a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)
                    || String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+    if (!S.cats.length && !snap.metadata.fromCache) seedCats();
     renderList();
+    if (!$('#catpanel').classList.contains('hidden')) renderCats();
   }, err => console.warn(err));
   const qy = query(collection(db, 'users', u.uid, 'recipes'), orderBy('createdAt', 'desc'));
   S.unsub = onSnapshot(qy, snap => {
