@@ -175,6 +175,37 @@ textarea.inp{resize:vertical;min-height:92px}
 .star:hover{background:var(--citrus-pale);color:var(--citrus)}
 .star.on{color:var(--citrus)}
 .auto-note{font-size:11.5px;color:var(--ink-faint);margin-top:5px}
+body.selecting .wrap{padding-bottom:150px}
+.rrow .ck{
+  flex:0 0 23px;height:23px;border:2px solid var(--line);border-radius:7px;
+  display:grid;place-items:center;color:transparent;font-size:13px;font-weight:700;
+}
+.rrow.on{background:var(--green-pale)}
+.rrow.on .ck{background:var(--green);border-color:var(--green);color:#fff}
+.selall{
+  font-size:11.5px;font-weight:700;color:var(--green-dark);border:1px solid var(--line);
+  background:var(--card);padding:3px 9px;border-radius:999px;white-space:nowrap;
+}
+.selall:hover{background:#fff;border-color:var(--green)}
+.selbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:70;
+  background:var(--ink);color:#F3F6F1;
+  padding:11px 14px calc(env(safe-area-inset-bottom) + 11px);
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  box-shadow:0 -8px 28px -14px rgba(22,32,43,.7);
+}
+.selbar .n{font-weight:700;font-size:13.5px;white-space:nowrap}
+.selbar select{
+  flex:1 1 150px;min-width:0;background:#24313F;color:#F3F6F1;
+  border:1px solid #3B4A59;border-radius:9px;padding:9px 10px;font-size:13.5px;
+}
+.selbar button{
+  font-size:13px;font-weight:700;padding:9px 14px;border-radius:9px;white-space:nowrap;
+  border:1px solid rgba(243,246,241,.3);color:#F3F6F1;
+}
+.selbar button:hover{background:rgba(243,246,241,.12)}
+.selbar button.danger{border-color:#C26A58;color:#F3B5A6}
+.selbar button.danger:hover{background:rgba(194,106,88,.2)}
 .target-note{
   background:var(--citrus-pale);border-radius:9px;padding:8px 12px;font-size:12.5px;
   display:flex;align-items:center;gap:10px;margin-bottom:12px;
@@ -368,10 +399,20 @@ details.raw pre{
     </div>
     <div class="listhead">
       <span class="count" id="count"></span>
-      <button class="minibtn" id="btn-cats">分類の設定</button>
+      <span class="row" style="gap:7px">
+        <button class="minibtn" id="btn-sel">選ぶ</button>
+        <button class="minibtn" id="btn-cats">分類の設定</button>
+      </span>
     </div>
     <div class="catpanel hidden" id="catpanel"></div>
     <div id="tree"></div>
+    <div class="selbar hidden" id="selbar">
+      <span class="n" id="sel-n">0件</span>
+      <button id="sel-all">表示中を全部</button>
+      <button id="sel-end">やめる</button>
+      <select id="sel-move"></select>
+      <button class="danger" id="sel-del">削除</button>
+    </div>
   </section>
 
   <!-- 編集 -->
@@ -529,7 +570,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-         collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDocsFromCache, where,
+         collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDocsFromCache, where, writeBatch,
          onSnapshot, query, orderBy, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -559,7 +600,8 @@ function toast(msg){
 
 const S = { user:null, recipes:[], view:'auth', draft:null, current:null, checked:new Set(), unsub:null,
             capImages:[], draftImages:[], removedImages:[], detailImages:[],
-            cats:[], purposeTarget:'', unsubF:null };
+            cats:[], purposeTarget:'', unsubF:null,
+            selMode:false, sel:new Set() };
 
 /* ============================================================
    画像
@@ -1054,7 +1096,9 @@ function rowHtml(r){
               : r.source === 'image'     ? '<span class="pill g">スクショ</span>'
               : '<span class="pill g">メモ</span>';
   const n = (r.ingredients || []).length;
-  return '<button class="rrow" data-id="' + esc(r.id) + '">' + th +
+  const on = S.sel.has(r.id);
+  return '<button class="rrow' + (on ? ' on' : '') + '" data-id="' + esc(r.id) + '">'
+    + (S.selMode ? '<span class="ck">✓</span>' : '') + th +
     '<span class="tx"><h3>' + esc(r.title || '名前のないレシピ') + '</h3>' +
     '<span class="meta">' + badge +
     (n ? '<span>材料 ' + n + '</span>' : '') +
@@ -1093,19 +1137,30 @@ function groupHtml(g, forceOpen){
     + '<span class="chev' + (open ? ' open' : '') + '">▶</span>'
     + '<span class="nm">' + esc(g.name) + '</span>'
     + '<span class="ct">' + g.items.length + '</span>'
-    + (loose ? '' : '<div class="facts"><button data-add="' + esc(g.id)
-        + '" title="ここに取り込む">＋</button></div>')
+    + (S.selMode
+        ? (g.items.length ? '<div class="facts"><button class="selall" data-selgroup="'
+            + esc(g.id) + '">'
+            + (g.items.every(r => S.sel.has(r.id)) ? '解除' : '全部') + '</button></div>' : '')
+        : (loose ? '' : '<div class="facts"><button data-add="' + esc(g.id)
+            + '" title="ここに取り込む">＋</button></div>'))
     + '</div>'
     + (open ? '<div class="fbody">' + body + '</div>' : '')
     + '</div>';
 }
 
+let visibleIds = [];
 function renderList(){
+  if (S.sel.size){
+    const live = new Set(S.recipes.map(r => r.id));
+    Array.from(S.sel).forEach(id => { if (!live.has(id)) S.sel.delete(id); });
+  }
   const q = $('#q').value.trim().toLowerCase();
   const hit = r => !q || [r.title, (r.tags || []).join(' '),
       (r.ingredients || []).map(i => i.name).join(' '), r.memo, r.rawText]
       .join(' ').toLowerCase().includes(q);
   const list = S.recipes.filter(hit);
+  visibleIds = list.map(r => r.id);
+  updateSelBar();
 
   const groups = byKind('purpose').map(c => ({ id:c.id, name:c.name, items:[] }));
   groups.push({ id:NONE, name:'未分類', items:[] });
@@ -1126,8 +1181,8 @@ function renderList(){
     return;
   }
   $('#tree').innerHTML = groups
-    .filter(g => g.items.length || (!q && g.id !== NONE))
-    .map(g => groupHtml(g, !!q)).join('');
+    .filter(g => g.items.length || (!q && !S.selMode && g.id !== NONE))
+    .map(g => groupHtml(g, !!q || S.selMode)).join('');
 }
 $('#q').addEventListener('input', renderList);
 
@@ -1135,8 +1190,23 @@ $('#tree').addEventListener('click', e => {
   const t = e.target;
   const rrow = t.closest('.rrow');
   if (rrow){
-    const r = S.recipes.find(x => x.id === rrow.dataset.id);
+    const id = rrow.dataset.id;
+    if (S.selMode){
+      S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id);
+      renderList();
+      return;
+    }
+    const r = S.recipes.find(x => x.id === id);
     if (r) openDetail(r);
+    return;
+  }
+  if (t.dataset.selgroup !== undefined){
+    const gid = t.dataset.selgroup;
+    const ids = S.recipes.filter(r => visibleIds.indexOf(r.id) >= 0 && purposeOf(r) === gid)
+                         .map(r => r.id);
+    const allOn = ids.every(id => S.sel.has(id));
+    ids.forEach(id => allOn ? S.sel.delete(id) : S.sel.add(id));
+    renderList();
     return;
   }
   if (t.dataset.add){ setTarget(t.dataset.add); return; }
@@ -1147,6 +1217,95 @@ $('#tree').addEventListener('click', e => {
     openMap[fh.dataset.toggle] = !openMap[fh.dataset.toggle];
     renderList();
   }
+});
+
+/* ---- まとめて移す・消す ---- */
+function setSelMode(on){
+  S.selMode = on;
+  if (!on) S.sel.clear();
+  document.body.classList.toggle('selecting', on);
+  $('#selbar').classList.toggle('hidden', !on);
+  $('#btn-sel').classList.toggle('on', on);
+  $('#btn-sel').textContent = on ? '選ぶのをやめる' : '選ぶ';
+  if (on){ setTarget(''); fillMoveSelect(); }
+  renderList();
+}
+$('#btn-sel').addEventListener('click', () => setSelMode(!S.selMode));
+$('#sel-end').addEventListener('click', () => setSelMode(false));
+
+function updateSelBar(){
+  if (!S.selMode) return;
+  const n = S.sel.size;
+  $('#sel-n').textContent = n ? n + '件' : '選んでください';
+  $('#sel-del').disabled = !n;
+  $('#sel-move').disabled = !n;
+  const allOn = visibleIds.length && visibleIds.every(id => S.sel.has(id));
+  $('#sel-all').textContent = allOn ? '選択を外す' : '表示中を全部';
+}
+
+$('#sel-all').addEventListener('click', () => {
+  const allOn = visibleIds.length && visibleIds.every(id => S.sel.has(id));
+  visibleIds.forEach(id => allOn ? S.sel.delete(id) : S.sel.add(id));
+  renderList();
+});
+
+function fillMoveSelect(){
+  const o = (v, l) => '<option value="' + esc(v) + '">' + esc(l) + '</option>';
+  $('#sel-move').innerHTML =
+      o('', 'まとめて移す…')
+    + '<optgroup label="用途を変える">'
+    + byKind('purpose').map(c => o('p:' + c.id, c.name)).join('')
+    + o('p:', '自動にもどす') + o('p:-', '分類しない') + '</optgroup>'
+    + '<optgroup label="食材を変える">'
+    + byKind('ing').map(c => o('i:' + c.id, c.name)).join('')
+    + o('i:', '自動にもどす') + o('i:-', '分類しない') + '</optgroup>';
+}
+
+/* Firestore のバッチは1回500件まで。余裕をみて400で区切る。 */
+async function runBatch(apply, items){
+  let batch = writeBatch(db), n = 0;
+  for (const it of items){
+    apply(batch, it);
+    if (++n >= 400){ await batch.commit(); batch = writeBatch(db); n = 0; }
+  }
+  if (n) await batch.commit();
+}
+
+$('#sel-move').addEventListener('change', async e => {
+  const v = e.target.value;
+  e.target.value = '';
+  if (!v || !S.sel.size) return;
+  const field = v.charAt(0) === 'p' ? 'purposeId' : 'ingId';
+  const val = v.slice(2);
+  const ids = Array.from(S.sel);
+  const label = val === '' ? '自動' : val === NONE ? '分類しない' : catName(val);
+  try {
+    await runBatch((b, id) => b.update(
+      doc(db, 'users', S.user.uid, 'recipes', id),
+      { [field]: val, updatedAt: serverTimestamp() }), ids);
+    toast(ids.length + '件を「' + label + '」に移しました');
+  } catch (err){ console.error(err); toast('移せませんでした'); }
+});
+
+$('#sel-del').addEventListener('click', async () => {
+  const ids = Array.from(S.sel);
+  if (!ids.length) return;
+  if (!confirm(ids.length + '件を削除します。もとに戻せません。')) return;
+  const btn = $('#sel-del'); btn.disabled = true;
+  try {
+    /* ぶら下がっている画像もまとめて消す（in は一度に30件まで） */
+    const imgIds = [];
+    for (let i = 0; i < ids.length; i += 30){
+      const snap = await getDocs(query(imgCol(), where('recipeId', 'in', ids.slice(i, i + 30))));
+      snap.docs.forEach(d => imgIds.push(d.id));
+    }
+    await runBatch((b, id) => b.delete(doc(imgCol(), id)), imgIds);
+    await runBatch((b, id) => b.delete(doc(db, 'users', S.user.uid, 'recipes', id)), ids);
+    S.sel.clear();
+    toast(ids.length + '件を削除しました');
+    setSelMode(false);
+  } catch (err){ console.error(err); toast('削除できませんでした'); }
+  finally { btn.disabled = false; }
 });
 
 /* ---- 分類の設定 ---- */
@@ -1706,6 +1865,7 @@ onAuthStateChanged(auth, u => {
     if (!S.cats.length && !snap.metadata.fromCache) seedCats();
     renderList();
     if (!$('#catpanel').classList.contains('hidden')) renderCats();
+    if (S.selMode) fillMoveSelect();
   }, err => console.warn(err));
   const qy = query(collection(db, 'users', u.uid, 'recipes'), orderBy('createdAt', 'desc'));
   S.unsub = onSnapshot(qy, snap => {
